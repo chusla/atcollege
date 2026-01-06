@@ -26,16 +26,25 @@ export default function Landing() {
 
   const loadData = async () => {
     try {
-      const [eventsData, placesData, oppsData, groupsData] = await Promise.all([
+      // Fetch each independently so one failure doesn't block others
+      const [eventsResult, placesResult, oppsResult, groupsResult] = await Promise.allSettled([
         Event.listFeatured(null, 6),
         Place.listFeatured(null, 6),
         Opportunity.listFeatured(null, 6),
         InterestGroup.listFeatured(null, 8)
       ]);
-      setEvents(eventsData || []);
-      setPlaces(placesData || []);
-      setOpportunities(oppsData || []);
-      setGroups(groupsData || []);
+      
+      setEvents(eventsResult.status === 'fulfilled' ? eventsResult.value || [] : []);
+      setPlaces(placesResult.status === 'fulfilled' ? placesResult.value || [] : []);
+      setOpportunities(oppsResult.status === 'fulfilled' ? oppsResult.value || [] : []);
+      setGroups(groupsResult.status === 'fulfilled' ? groupsResult.value || [] : []);
+      
+      // Log any failures for debugging
+      [eventsResult, placesResult, oppsResult, groupsResult].forEach((result, i) => {
+        if (result.status === 'rejected') {
+          console.error(`Failed to load ${['events', 'places', 'opportunities', 'groups'][i]}:`, result.reason);
+        }
+      });
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {

@@ -142,19 +142,27 @@ export const Campus = {
 export const Event = {
   ...createEntity('events'),
   async listFeatured(campusId = null, limit = 6) {
-    const today = new Date().toISOString().split('T')[0]
-    let query = supabase
-      .from('events')
-      .select('*')
-      .eq('status', 'approved')
-      .gte('date', today)
-      .order('date', { ascending: true })
-      .limit(limit)
-    
-    if (campusId) query = query.eq('campus_id', campusId)
-    const { data, error } = await query
-    if (error) throw error
-    return data || []
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      let query = supabase
+        .from('events')
+        .select('*')
+        .eq('status', 'approved')
+        .gte('date', today)
+        .order('date', { ascending: true })
+        .limit(limit)
+      
+      if (campusId) query = query.eq('campus_id', campusId)
+      const { data, error } = await query
+      if (error) {
+        console.error('Error fetching events:', error)
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.error('Error in listFeatured events:', error)
+      return []
+    }
   },
   async listUpcoming(campusId = null, limit = 10) {
     return this.listFeatured(campusId, limit)
@@ -164,17 +172,25 @@ export const Event = {
 export const Place = {
   ...createEntity('places'),
   async listFeatured(campusId = null, limit = 6) {
-    let query = supabase
-      .from('places')
-      .select('*')
-      .eq('status', 'approved')
-      .order('rating', { ascending: false, nullsFirst: false })
-      .limit(limit)
-    
-    if (campusId) query = query.eq('campus_id', campusId)
-    const { data, error } = await query
-    if (error) throw error
-    return data || []
+    try {
+      let query = supabase
+        .from('places')
+        .select('*')
+        .eq('status', 'approved')
+        .order('rating', { ascending: false, nullsFirst: false })
+        .limit(limit)
+      
+      if (campusId) query = query.eq('campus_id', campusId)
+      const { data, error } = await query
+      if (error) {
+        console.error('Error fetching places:', error)
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.error('Error in listFeatured places:', error)
+      return []
+    }
   },
   async listPopular(campusId = null, limit = 10) {
     return this.listFeatured(campusId, limit)
@@ -184,19 +200,27 @@ export const Place = {
 export const Opportunity = {
   ...createEntity('opportunities'),
   async listFeatured(campusId = null, limit = 6) {
-    const today = new Date().toISOString().split('T')[0]
-    let query = supabase
-      .from('opportunities')
-      .select('*')
-      .eq('status', 'approved')
-      .or(`deadline.is.null,deadline.gte.${today}`)
-      .order('created_at', { ascending: false })
-      .limit(limit)
-    
-    if (campusId) query = query.eq('campus_id', campusId)
-    const { data, error } = await query
-    if (error) throw error
-    return data || []
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      let query = supabase
+        .from('opportunities')
+        .select('*')
+        .eq('status', 'approved')
+        .or(`deadline.is.null,deadline.gte.${today}`)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+      
+      if (campusId) query = query.eq('campus_id', campusId)
+      const { data, error } = await query
+      if (error) {
+        console.error('Error fetching opportunities:', error)
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.error('Error in listFeatured opportunities:', error)
+      return []
+    }
   },
   async listActive(campusId = null, limit = 20) {
     return this.listFeatured(campusId, limit)
@@ -206,17 +230,25 @@ export const Opportunity = {
 export const InterestGroup = {
   ...createEntity('interest_groups'),
   async listFeatured(campusId = null, limit = 8) {
-    let query = supabase
-      .from('interest_groups')
-      .select('*')
-      .eq('status', 'approved')
-      .order('member_count', { ascending: false })
-      .limit(limit)
-    
-    if (campusId) query = query.eq('campus_id', campusId)
-    const { data, error } = await query
-    if (error) throw error
-    return data || []
+    try {
+      let query = supabase
+        .from('interest_groups')
+        .select('*')
+        .eq('status', 'approved')
+        .order('member_count', { ascending: false })
+        .limit(limit)
+      
+      if (campusId) query = query.eq('campus_id', campusId)
+      const { data, error } = await query
+      if (error) {
+        console.error('Error fetching interest groups:', error)
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.error('Error in listFeatured groups:', error)
+      return []
+    }
   },
   async listPopular(campusId = null, limit = 10) {
     return this.listFeatured(campusId, limit)

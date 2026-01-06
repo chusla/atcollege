@@ -92,11 +92,11 @@ export function AuthProvider({ children }) {
     if (initializedRef.current) return
     initializedRef.current = true
 
-    // Safety timeout - never show loading for more than 5 seconds
+    // Safety timeout - never show loading for more than 2 seconds
     const safetyTimeout = setTimeout(() => {
       console.warn('Auth initialization timed out, forcing load completion')
       setLoading(false)
-    }, 5000)
+    }, 2000)
 
     const initAuth = async () => {
       try {
