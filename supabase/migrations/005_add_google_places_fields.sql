@@ -3,6 +3,14 @@
 -- Run this after 004_fix_profiles_schema.sql
 -- ============================================
 
+-- First, update the source check constraint to allow 'google_maps'
+ALTER TABLE places 
+  DROP CONSTRAINT IF EXISTS places_source_check;
+
+ALTER TABLE places 
+  ADD CONSTRAINT places_source_check 
+  CHECK (source IN ('ai_suggested', 'user_submitted', 'admin', 'google_maps'));
+
 -- Add Google Places fields to places table
 ALTER TABLE places 
   ADD COLUMN IF NOT EXISTS google_place_id TEXT,
