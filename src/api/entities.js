@@ -299,6 +299,20 @@ export const Place = {
   },
   async createFromGooglePlace(googlePlaceData, campusId = null) {
     try {
+      // First check if place already exists to avoid 409 conflict errors
+      if (googlePlaceData.google_place_id) {
+        const { data: existingPlace } = await supabase
+          .from('places')
+          .select()
+          .eq('google_place_id', googlePlaceData.google_place_id)
+          .single();
+        
+        if (existingPlace) {
+          console.log('📝 [PLACE] Place already exists, returning existing:', googlePlaceData.name);
+          return existingPlace;
+        }
+      }
+
       // Generate description from Google data or editorial summary
       let description = googlePlaceData.editorials_summary || googlePlaceData.editorial_summary?.overview || null;
       
@@ -314,13 +328,7 @@ export const Place = {
         }
       }
 
-      console.log('📝 [PLACE] Creating place with data:', {
-        name: googlePlaceData.name,
-        hasPhoto: !!googlePlaceData.photo_url,
-        photoUrl: googlePlaceData.photo_url?.substring(0, 80) + '...',
-        hasDescription: !!description,
-        description: description?.substring(0, 80) + '...'
-      });
+      console.log('📝 [PLACE] Creating new place:', googlePlaceData.name);
 
       const placeData = {
         name: googlePlaceData.name,
@@ -354,9 +362,9 @@ export const Place = {
         .single()
       
       if (error) {
-        // Handle duplicate key error - place already exists
+        // Handle race condition - place was created between check and insert
         if (error.code === '23505' && googlePlaceData.google_place_id) {
-          console.log('📝 [PLACE] Place already exists, fetching existing:', googlePlaceData.name);
+          console.log('📝 [PLACE] Race condition: place was just created, fetching:', googlePlaceData.name);
           const { data: existingPlace, error: fetchError } = await supabase
             .from('places')
             .select()
