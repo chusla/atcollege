@@ -19,6 +19,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
     setPassword('');
     setConfirmPassword('');
     setError('');
+    setLoading(false);
     setMode('choose');
   };
 
@@ -126,7 +127,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
               </div>
 
               <Button
-                onClick={() => setMode('signin')}
+                onClick={() => { setLoading(false); setError(''); setMode('signin'); }}
                 variant="outline"
                 className="w-full py-6 text-lg"
               >
@@ -135,7 +136,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
               </Button>
 
               <Button
-                onClick={() => setMode('signup')}
+                onClick={() => { setLoading(false); setError(''); setMode('signup'); }}
                 className="w-full py-6 text-lg bg-orange-500 hover:bg-orange-600"
               >
                 Create Account
@@ -192,7 +193,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
                 Don't have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => { setError(''); setMode('signup'); }}
+                  onClick={() => { setLoading(false); setError(''); setMode('signup'); }}
                   className="text-orange-600 hover:text-orange-700 font-medium"
                 >
                   Sign up
@@ -201,7 +202,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
               
               <button
                 type="button"
-                onClick={() => { setError(''); setMode('choose'); }}
+                onClick={() => { setLoading(false); setError(''); setMode('choose'); }}
                 className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
               >
                 ← Back to options
@@ -270,7 +271,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
                 Already have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => { setError(''); setMode('signin'); }}
+                  onClick={() => { setLoading(false); setError(''); setMode('signin'); }}
                   className="text-orange-600 hover:text-orange-700 font-medium"
                 >
                   Sign in
@@ -279,7 +280,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
               
               <button
                 type="button"
-                onClick={() => { setError(''); setMode('choose'); }}
+                onClick={() => { setLoading(false); setError(''); setMode('choose'); }}
                 className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
               >
                 ← Back to options
