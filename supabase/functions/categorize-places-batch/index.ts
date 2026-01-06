@@ -8,13 +8,15 @@ const ANTHROPIC_VERSION = '2023-06-01'
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
+      status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Max-Age': '86400',
       },
     })
   }

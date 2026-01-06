@@ -522,7 +522,7 @@ export default function Home() {
               onSubmit={handlePlacesSubmit}
               previewImage="https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400"
               previewTitle="Campus Café"
-              previewSubtitle="4.3 ★★★★"
+              previewSubtitle="Find great places near campus"
             />
 
             {/* Opportunities Module */}
