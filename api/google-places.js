@@ -49,7 +49,13 @@ export default async function handler(req, res) {
     console.log('🗺️ [PROXY] Fetching from Google Places API:', url.toString());
 
     // Make the request to Google Places API
-    const response = await fetch(url.toString());
+    // Include User-Agent to help with API key restrictions
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'atcollege-serverless-function/1.0',
+        'Referer': req.headers.referer || req.headers.origin || 'https://atcollege.vercel.app'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`Google Places API error: ${response.statusText}`);
@@ -59,6 +65,16 @@ export default async function handler(req, res) {
     
     // Log the response status
     console.log('🗺️ [PROXY] Google Places API response:', data.status);
+    
+    // Check for API key restriction errors
+    if (data.status === 'REQUEST_DENIED' && data.error_message?.includes('referer restrictions')) {
+      console.error('🗺️ [PROXY] API key has referer restrictions. Update key in Google Cloud Console to use IP restrictions or None instead.');
+      return res.status(403).json({ 
+        error: 'API key configuration error',
+        message: 'API keys with referer restrictions cannot be used server-side. Please update your API key in Google Cloud Console to use IP address restrictions or no restrictions.',
+        details: data.error_message
+      });
+    }
 
     // Return the data to the client
     return res.status(200).json(data);
