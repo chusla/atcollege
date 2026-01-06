@@ -26,7 +26,8 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
     type: '',
     location: '',
     address: '',
-    start_date: '',
+    date: '',
+    time: '',
     organization: '',
     deadline: ''
   });
@@ -67,8 +68,9 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             title: formData.title,
             category: formData.category,
             location: formData.location,
-            start_date: formData.start_date,
-            organizer_id: user?.id
+            date: formData.date,
+            time: formData.time,
+            created_by: user?.id
           });
           break;
         case 'place':
@@ -104,7 +106,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
       // Reset form
       setFormData({
         title: '', name: '', description: '', category: '', type: '',
-        location: '', address: '', start_date: '', organization: '', deadline: ''
+        location: '', address: '', date: '', time: '', organization: '', deadline: ''
       });
       setImageUrl('');
       onSuccess?.();
@@ -187,8 +189,12 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="start_date">Date & Time</Label>
-                <Input id="start_date" type="datetime-local" value={formData.start_date} onChange={(e) => updateField('start_date', e.target.value)} />
+                <Label htmlFor="date">Date</Label>
+                <Input id="date" type="date" value={formData.date} onChange={(e) => updateField('date', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="time">Time</Label>
+                <Input id="time" type="time" value={formData.time} onChange={(e) => updateField('time', e.target.value)} />
               </div>
               <div>
                 <Label htmlFor="location">Location</Label>

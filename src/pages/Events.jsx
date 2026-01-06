@@ -35,7 +35,7 @@ export default function Events() {
         filters.category = category.toLowerCase();
       }
       const data = await Event.filter(filters, { 
-        orderBy: { column: 'start_date', ascending: false }, 
+        orderBy: { column: 'date', ascending: false }, 
         limit: 20 
       });
       setEvents(data || []);

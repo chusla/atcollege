@@ -40,8 +40,8 @@ export default function Detail() {
       setItem(data);
 
       const allComments = await Comment.filter({ 
-        entity_type: itemType, 
-        entity_id: itemId 
+        item_type: itemType, 
+        item_id: itemId 
       });
       
       const threadedComments = buildCommentTree(allComments || []);
@@ -92,9 +92,10 @@ export default function Detail() {
 
     await Comment.create({
       content: newComment,
-      entity_type: itemType,
-      entity_id: itemId,
-      user_id: user.id
+      item_type: itemType,
+      item_id: itemId,
+      user_id: user.id,
+      user_name: user.user_metadata?.full_name || user.email
     });
 
     setNewComment('');
@@ -109,9 +110,10 @@ export default function Detail() {
 
     await Comment.create({
       content,
-      entity_type: itemType,
-      entity_id: itemId,
+      item_type: itemType,
+      item_id: itemId,
       user_id: user.id,
+      user_name: user.user_metadata?.full_name || user.email,
       parent_id: parentId
     });
 
@@ -231,10 +233,10 @@ export default function Detail() {
               )}
 
               <div className="space-y-3 text-sm">
-                {item.start_date && (
+                {item.date && (
                   <div className="flex items-center gap-3 text-gray-600">
                     <Calendar className="w-5 h-5" />
-                    <span>{format(new Date(item.start_date), 'MMMM d, yyyy')}</span>
+                    <span>{format(new Date(item.date), 'MMMM d, yyyy')}</span>
                   </div>
                 )}
                 {(item.location || item.address) && (

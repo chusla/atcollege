@@ -46,10 +46,10 @@ export default function EventCard({ event, onSave, isSaved }) {
             <h3 className="text-white font-semibold text-sm line-clamp-2 mb-1">
               {event.title}
             </h3>
-            {event.start_date && (
+            {event.date && (
               <div className="flex items-center gap-1 text-white/80 text-xs">
                 <Calendar className="w-3 h-3" />
-                {format(new Date(event.start_date), 'MMM d, yyyy')}
+                {format(new Date(event.date), 'MMM d, yyyy')}
               </div>
             )}
           </div>

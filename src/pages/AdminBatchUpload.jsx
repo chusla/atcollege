@@ -82,8 +82,9 @@ export default function AdminBatchUpload() {
   {
     "title": "Campus Concert",
     "description": "Annual spring concert",
-    "category": "social",
-    "start_date": "2026-04-15T18:00:00Z",
+    "category": "Social",
+    "date": "2026-04-15",
+    "time": "6:00 PM",
     "location": "Main Quad",
     "status": "approved"
   }

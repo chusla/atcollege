@@ -40,10 +40,10 @@ export default function EventRowCard({ event, onSave, isSaved }) {
               </button>
             </div>
             <div className="mt-2 space-y-1 text-sm text-gray-500">
-              {event.start_date && (
+              {event.date && (
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  {format(new Date(event.start_date), 'MMM d, yyyy')}
+                  {format(new Date(event.date), 'MMM d, yyyy')}
                 </div>
               )}
               {event.location && (
