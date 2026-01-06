@@ -16,7 +16,7 @@ export default function Layout({ children, currentPageName }) {
   const user = getCurrentUser();
 
   // Pages that don't need the layout navigation
-  const noNavPages = ['Landing', 'SelectCollege', 'Admin', 'Profile'];
+  const noNavPages = ['Landing', 'SelectCollege', 'Admin'];
   const showNav = !noNavPages.includes(currentPageName);
 
   const navItems = [
