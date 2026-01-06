@@ -25,11 +25,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing endpoint parameter' });
   }
 
-  // Try both VITE_ prefixed and non-prefixed env vars
-  const API_KEY = process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+  // Use server-side environment variable (VITE_ vars are client-side only)
+  // In Vercel, set GOOGLE_MAPS_API_KEY in environment variables
+  const API_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY;
 
   if (!API_KEY) {
-    console.error('Google Maps API key not configured');
+    console.error('Google Maps API key not configured. Set GOOGLE_MAPS_API_KEY in Vercel environment variables.');
     return res.status(500).json({ error: 'API key not configured' });
   }
 
