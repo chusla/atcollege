@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Place, SavedItem, Campus } from '@/api/entities';
+import { searchPlaces, getPlaceDetails } from '@/api/googlePlaces';
 import { filterByRadius } from '@/utils/geo';
 import PlaceCard from '../components/cards/PlaceCard';
 import PlaceRowCard from '../components/results/PlaceRowCard';
@@ -71,12 +72,65 @@ export default function Places() {
       // Filter by search query if provided
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        data = (data || []).filter(place => 
-          place.name?.toLowerCase().includes(query) ||
-          place.description?.toLowerCase().includes(query) ||
-          place.address?.toLowerCase().includes(query) ||
-          place.category?.toLowerCase().includes(query)
-        );
+        
+        // Filter DB results
+        data = (data || []).filter(place => {
+          // Check basic fields
+          if (place.name?.toLowerCase().includes(query)) return true;
+          if (place.description?.toLowerCase().includes(query)) return true;
+          if (place.address?.toLowerCase().includes(query)) return true;
+          if (place.category?.toLowerCase().includes(query)) return true;
+          
+          // Check Google place data for types (e.g., "burger_restaurant", "mexican_restaurant")
+          if (place.google_place_data) {
+            const gpd = place.google_place_data;
+            // Check types array
+            if (gpd.types?.some(t => t.toLowerCase().includes(query))) return true;
+            // Check primary type
+            if (gpd.primaryType?.toLowerCase().includes(query)) return true;
+            // Check editorial summary
+            if (gpd.editorials_summary?.toLowerCase().includes(query)) return true;
+          }
+          
+          return false;
+        });
+
+        // Also search Google Places API to get fresh results
+        try {
+          const radiusMiles = parseFloat(radius) || 5;
+          const googleResults = await searchPlaces({
+            query: searchQuery,
+            location: campusLocation,
+            radius: radiusMiles * 1609.34 // Convert miles to meters
+          });
+
+          if (googleResults?.length > 0) {
+            // Check which Google results are already in our DB data
+            const existingIds = new Set(data.map(p => p.google_place_id).filter(Boolean));
+            const newGooglePlaces = googleResults.filter(gp => !existingIds.has(gp.google_place_id));
+            
+            // Create new places in DB (in background) and add to results
+            for (const gp of newGooglePlaces.slice(0, 15)) {
+              try {
+                // Try to get from DB first (might have been created earlier)
+                const existing = await Place.filter({ google_place_id: gp.google_place_id });
+                if (existing?.length > 0) {
+                  data.push(existing[0]);
+                } else {
+                  // Create new place
+                  const newPlace = await Place.createFromGooglePlace(gp, user?.selected_campus_id);
+                  if (newPlace) {
+                    data.push(newPlace);
+                  }
+                }
+              } catch (err) {
+                console.warn('Error creating place:', gp.name, err);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Google search failed, showing DB results only:', err);
+        }
       }
 
       // Always filter by radius to only show nearby places
@@ -88,6 +142,15 @@ export default function Places() {
           parseFloat(radius)
         );
       }
+
+      // Remove duplicates (by google_place_id or id)
+      const seen = new Set();
+      data = data.filter(place => {
+        const key = place.google_place_id || place.id;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
       // Limit results after radius filtering
       setPlaces((data || []).slice(0, 50));
