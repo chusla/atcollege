@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 export default function Home() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getCurrentUser, isAuthenticated, isRegistrationComplete, loading: authLoading } = useAuth();
+  const { getCurrentUser, isAuthenticated, isRegistrationComplete, loading: authLoading, profileLoaded } = useAuth();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,13 +38,17 @@ export default function Home() {
         navigate(createPageUrl('Landing'));
         return;
       }
+      // Wait for profile to be loaded before checking registration
+      if (!profileLoaded) {
+        return; // Wait for profile to load
+      }
       if (!isRegistrationComplete()) {
         navigate(createPageUrl('Onboarding'));
         return;
       }
       loadData();
     }
-  }, [authLoading, isAuthenticated, isRegistrationComplete]);
+  }, [authLoading, isAuthenticated, isRegistrationComplete, profileLoaded]);
 
   // Restore search from URL params when navigating back
   useEffect(() => {

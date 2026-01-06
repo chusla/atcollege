@@ -6,13 +6,17 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
   const [loading, setLoading] = useState(true)
   const initializedRef = useRef(false)
   const initialSessionCheckedRef = useRef(false)
 
   // Fetch user profile, create if doesn't exist
   async function fetchProfile(authUser) {
-    if (!authUser?.id) return null
+    if (!authUser?.id) {
+      setProfileLoaded(true)
+      return null
+    }
     
     // Create basic profile from auth metadata (fallback)
     const basicProfile = {
@@ -34,6 +38,7 @@ export function AuthProvider({ children }) {
       if (error) {
         console.error('Error fetching profile:', error)
         setProfile(basicProfile)
+        setProfileLoaded(true)
         return basicProfile
       }
 
@@ -50,18 +55,22 @@ export function AuthProvider({ children }) {
         if (createError) {
           console.error('Error creating profile:', createError)
           setProfile(basicProfile)
+          setProfileLoaded(true)
           return basicProfile
         }
         
         setProfile(created || basicProfile)
+        setProfileLoaded(true)
         return created || basicProfile
       }
 
       setProfile(data)
+      setProfileLoaded(true)
       return data
     } catch (error) {
       console.error('Error in fetchProfile:', error.message)
       setProfile(basicProfile)
+      setProfileLoaded(true)
       return basicProfile
     }
   }
@@ -263,6 +272,7 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     profile,
+    profileLoaded,
     loading,
     isAuthenticated,
     isAdmin,
