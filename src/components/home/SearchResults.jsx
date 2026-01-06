@@ -159,7 +159,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-500">
           <span className="tabular-nums">{totalResults}</span> results for "{query}"
-          {loadingMore && <span className="text-orange-600 ml-2">• Searching Google Places...</span>}
+          {loadingMore && <span className="text-orange-600 ml-2">• Finding more places near campus...</span>}
         </p>
       </div>
       

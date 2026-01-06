@@ -210,7 +210,7 @@ export default function AdminContent() {
             {type === 'Place' && (
               <TableCell>
                 <Badge variant={item.source === 'google_maps' ? 'default' : 'outline'}>
-                  {item.source === 'google_maps' ? 'Google Maps' : item.source || 'User'}
+                  {item.source === 'google_maps' ? 'Imported' : item.source || 'User'}
                 </Badge>
               </TableCell>
             )}

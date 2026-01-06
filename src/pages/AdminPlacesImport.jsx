@@ -170,7 +170,7 @@ export default function AdminPlacesImport() {
   return (
     <AdminLayout active="PlacesImport">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Import Places from Google Maps</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Import Places Near Campus</h1>
         <p className="text-gray-600 mt-2">Search and import places around campuses</p>
       </div>
 

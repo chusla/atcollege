@@ -15,7 +15,7 @@ export default function ResultsMapView({ items, itemType, center = null, radiusM
           <div className="text-center">
             <p className="text-gray-500 mb-2">Map View</p>
             <p className="text-sm text-gray-400">
-              Google Maps API key not configured
+              Map not available
             </p>
           </div>
         </div>
