@@ -9,17 +9,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Mail, Heart, MessageSquare, GraduationCap, LogOut } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { UploadFile } from '@/api/integrations';
+import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { getCurrentUser, updateProfile, signOut, isAuthenticated, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [likedItems, setLikedItems] = useState([]);
   const [comments, setComments] = useState([]);
   const [campuses, setCampuses] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
 
   const user = getCurrentUser();
 
@@ -29,7 +35,9 @@ export default function Profile() {
         navigate(createPageUrl('Landing'));
         return;
       }
-      setSelectedCampus(user?.campus_id || '');
+      setSelectedCampus(user?.selected_campus_id || '');
+      setFirstName(user?.first_name || '');
+      setAvatarUrl(user?.avatar_url || '');
       loadUserData();
     }
   }, [authLoading]);
@@ -54,10 +62,49 @@ export default function Profile() {
 
   const handleUpdateCampus = async () => {
     try {
-      await updateProfile({ campus_id: selectedCampus });
+      const campus = campuses.find(c => c.id === selectedCampus);
+      await updateProfile({ 
+        selected_campus_id: selectedCampus,
+        selected_campus_name: campus?.name || ''
+      });
       alert('College updated successfully!');
     } catch (error) {
       console.error('Error updating campus:', error);
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const { url } = await UploadFile({ file, bucket: 'avatars' });
+      setAvatarUrl(url);
+      await updateProfile({ avatar_url: url });
+      alert('Profile picture updated!');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!firstName.trim()) {
+      alert('Please enter your name');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateProfile({ first_name: firstName });
+      alert('Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -107,18 +154,58 @@ export default function Profile() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-6 mb-6">
-              <Avatar className="w-20 h-20">
-                <AvatarImage src={user?.avatar_url} />
-                <AvatarFallback className="text-xl bg-orange-100 text-orange-600">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{user?.first_name || 'Student'}</h2>
-                <div className="flex items-center gap-2 text-gray-500 mt-1">
+              <div className="relative">
+                <Avatar className="w-20 h-20">
+                  <AvatarImage src={avatarUrl || user?.avatar_url} />
+                  <AvatarFallback className="text-xl bg-orange-100 text-orange-600">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <label
+                  htmlFor="avatar-upload"
+                  className="absolute bottom-0 right-0 w-7 h-7 bg-orange-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-orange-600 transition-colors"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  ) : (
+                    <Upload className="w-3 h-3 text-white" />
+                  )}
+                </label>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 text-gray-500 mb-3">
                   <Mail className="w-4 h-4" />
                   <span>{user?.email}</span>
                 </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Your name"
+                    className="max-w-xs"
+                  />
+                  <Button 
+                    onClick={handleUpdateProfile}
+                    disabled={saving}
+                    size="sm"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
+                  </Button>
+                </div>
+                {user?.selected_campus_name && (
+                  <div className="flex items-center gap-2 text-gray-500 mt-2">
+                    <GraduationCap className="w-4 h-4" />
+                    <span>{user.selected_campus_name}</span>
+                  </div>
+                )}
               </div>
             </div>
 
