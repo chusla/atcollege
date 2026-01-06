@@ -4,7 +4,6 @@ import { createPageUrl } from '@/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Building2, Briefcase, Users, ChevronRight, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SearchResults({ results, query, loading, loadingMore }) {
   if (loading) {
@@ -24,13 +23,9 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
 
   if (totalResults === 0 && !loadingMore) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="text-center py-12 mb-10"
-      >
+      <div className="text-center py-12 mb-10 animate-fade-in">
         <p className="text-gray-500">No results found for "{query}"</p>
-      </motion.div>
+      </div>
     );
   }
 
@@ -78,7 +73,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
           <div className="flex items-center gap-2">
             <Icon className="w-5 h-5 text-gray-500" />
             <h3 className="font-semibold text-gray-900">{title}</h3>
-            <span className="text-sm text-gray-500">({count})</span>
+            <span className="text-sm text-gray-500 tabular-nums transition-all">({count})</span>
             {isPlaces && loadingMore && (
               <span className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -96,87 +91,74 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
             </Link>
           )}
         </div>
-        <AnimatePresence mode="popLayout">
-          <div className="space-y-2">
-            {items.map((item, index) => {
-              const isTemp = item.id?.toString().startsWith('temp-');
-              const itemLink = isTemp ? '#' : `${createPageUrl('Detail')}?type=${type}&id=${item.id}`;
-              
-              return (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Link
-                    to={itemLink}
-                    className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isTemp ? 'cursor-default' : 'hover:bg-gray-50'}`}
-                    onClick={isTemp ? (e) => e.preventDefault() : undefined}
-                  >
-                    {isPlaces ? (
-                      <PlaceImage item={item} />
-                    ) : (
-                      <img
-                        src={item.image_url || 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=100'}
-                        alt={item.title || item.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
+        <div className="space-y-2">
+          {items.map((item) => {
+            const isTemp = item.id?.toString().startsWith('temp-');
+            const itemLink = isTemp ? '#' : `${createPageUrl('Detail')}?type=${type}&id=${item.id}`;
+            
+            return (
+              <Link
+                key={item.id}
+                to={itemLink}
+                className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isTemp ? 'cursor-default' : 'hover:bg-gray-50'}`}
+                onClick={isTemp ? (e) => e.preventDefault() : undefined}
+              >
+                {isPlaces ? (
+                  <PlaceImage item={item} />
+                ) : (
+                  <img
+                    src={item.image_url || 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=100'}
+                    alt={item.title || item.name}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium text-gray-900 truncate">{item.title || item.name}</h4>
+                    {item.status === 'pending' && (
+                      <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                        New
+                      </Badge>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-gray-900 truncate">{item.title || item.name}</h4>
-                        {item.status === 'pending' && (
-                          <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
-                            New
-                          </Badge>
-                        )}
-                        {item._isLoading && (
-                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
-                            <Loader2 className="w-2 h-2 animate-spin mr-1" />
-                            Loading
-                          </Badge>
-                        )}
-                      </div>
-                      {item._isLoading ? (
-                        <Skeleton className="h-4 w-3/4 mt-1" />
-                      ) : (
-                        <p className="text-sm text-gray-500 truncate">{item.description || item.category || item.type || item.address}</p>
-                      )}
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
-            {isPlaces && loadingMore && items.length === 0 && (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-3 p-2">
-                    <Skeleton className="w-12 h-12 rounded-lg" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-32 mb-2" />
-                      <Skeleton className="h-3 w-48" />
-                    </div>
+                    {item._isLoading && (
+                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                        <Loader2 className="w-2 h-2 animate-spin mr-1" />
+                        Loading
+                      </Badge>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </AnimatePresence>
+                  {item._isLoading ? (
+                    <Skeleton className="h-4 w-3/4 mt-1" />
+                  ) : (
+                    <p className="text-sm text-gray-500 truncate transition-opacity">{item.description || item.category || item.type || item.address}</p>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+          {isPlaces && loadingMore && items.length === 0 && (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-2">
+                  <Skeleton className="w-12 h-12 rounded-lg" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-32 mb-2" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-10"
-    >
+    <div className="mb-10 animate-fade-in">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-500">
-          {totalResults} results for "{query}"
+          <span className="tabular-nums">{totalResults}</span> results for "{query}"
           {loadingMore && <span className="text-orange-600 ml-2">• Searching Google Places...</span>}
         </p>
       </div>
@@ -214,7 +196,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
         count={results.groupsCount}
         linkPage="Groups"
       />
-    </motion.div>
+    </div>
   );
 }
 

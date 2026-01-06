@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { SavedItem, Comment, Campus } from '@/api/entities';
+import { SavedItem, Comment, Campus, Event, Place, Opportunity, InterestGroup } from '@/api/entities';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { UploadFile } from '@/api/integrations';
-import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2 } from 'lucide-react';
+import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2, Calendar, Building2, Briefcase, Users } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import { format } from 'date-fns';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -20,7 +21,11 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [likedItems, setLikedItems] = useState([]);
+  const [savedItems, setSavedItems] = useState([]);
+  const [savedEvents, setSavedEvents] = useState([]);
+  const [savedPlaces, setSavedPlaces] = useState([]);
+  const [savedOpportunities, setSavedOpportunities] = useState([]);
+  const [savedGroups, setSavedGroups] = useState([]);
   const [comments, setComments] = useState([]);
   const [campuses, setCampuses] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('');
@@ -50,9 +55,29 @@ export default function Profile() {
         Campus.list()
       ]);
       
-      setLikedItems(saved || []);
+      setSavedItems(saved || []);
       setComments(userComments || []);
       setCampuses(campusesList || []);
+      
+      // Fetch full data for saved items by type
+      if (saved && saved.length > 0) {
+        const eventIds = saved.filter(s => s.item_type === 'event').map(s => s.item_id);
+        const placeIds = saved.filter(s => s.item_type === 'place').map(s => s.item_id);
+        const oppIds = saved.filter(s => s.item_type === 'opportunity').map(s => s.item_id);
+        const groupIds = saved.filter(s => s.item_type === 'group').map(s => s.item_id);
+        
+        const [allEvents, allPlaces, allOpps, allGroups] = await Promise.all([
+          eventIds.length > 0 ? Event.list() : Promise.resolve([]),
+          placeIds.length > 0 ? Place.list() : Promise.resolve([]),
+          oppIds.length > 0 ? Opportunity.list() : Promise.resolve([]),
+          groupIds.length > 0 ? InterestGroup.list() : Promise.resolve([])
+        ]);
+        
+        setSavedEvents((allEvents || []).filter(e => eventIds.includes(e.id)));
+        setSavedPlaces((allPlaces || []).filter(p => placeIds.includes(p.id)));
+        setSavedOpportunities((allOpps || []).filter(o => oppIds.includes(o.id)));
+        setSavedGroups((allGroups || []).filter(g => groupIds.includes(g.id)));
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
     } finally {
@@ -212,7 +237,7 @@ export default function Profile() {
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-blue-600">{likedItems.length}</p>
+                <p className="text-2xl font-bold text-blue-600">{savedItems.length}</p>
                 <p className="text-sm text-gray-600">Saved Items</p>
               </div>
               <div className="text-center p-4 bg-gray-50 rounded-lg">
@@ -220,7 +245,7 @@ export default function Profile() {
                 <p className="text-sm text-gray-600">Comments</p>
               </div>
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{savedGroups.length}</p>
                 <p className="text-sm text-gray-600">Groups</p>
               </div>
             </div>
@@ -243,15 +268,134 @@ export default function Profile() {
               </TabsList>
 
               <TabsContent value="liked">
-                <p className="text-center text-gray-500 py-8">
-                  {likedItems.length === 0 ? 'No saved items yet' : `${likedItems.length} saved items`}
-                </p>
+                {savedItems.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No saved items yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Saved Events */}
+                    {savedEvents.map((event) => (
+                      <Link 
+                        key={`event-${event.id}`}
+                        to={`${createPageUrl('Detail')}?type=event&id=${event.id}`}
+                        className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                          <img 
+                            src={event.image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200'} 
+                            alt={event.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 truncate">{event.title}</h4>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Calendar className="w-3 h-3" />
+                            <span>{event.date ? format(new Date(event.date), 'MMM d, yyyy') : 'No date'}</span>
+                          </div>
+                        </div>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Event</span>
+                      </Link>
+                    ))}
+                    
+                    {/* Saved Places */}
+                    {savedPlaces.map((place) => (
+                      <Link 
+                        key={`place-${place.id}`}
+                        to={`${createPageUrl('Detail')}?type=place&id=${place.id}`}
+                        className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                          <img 
+                            src={place.image_url || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200'} 
+                            alt={place.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 truncate">{place.name}</h4>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Building2 className="w-3 h-3" />
+                            <span className="truncate">{place.address || place.category || 'Place'}</span>
+                          </div>
+                        </div>
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Place</span>
+                      </Link>
+                    ))}
+                    
+                    {/* Saved Opportunities */}
+                    {savedOpportunities.map((opp) => (
+                      <Link 
+                        key={`opp-${opp.id}`}
+                        to={`${createPageUrl('Detail')}?type=opportunity&id=${opp.id}`}
+                        className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-orange-100 flex items-center justify-center">
+                          <Briefcase className="w-8 h-8 text-orange-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 truncate">{opp.title}</h4>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <span>{opp.organization || opp.type || 'Opportunity'}</span>
+                          </div>
+                        </div>
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">Opportunity</span>
+                      </Link>
+                    ))}
+                    
+                    {/* Saved Groups */}
+                    {savedGroups.map((group) => (
+                      <Link 
+                        key={`group-${group.id}`}
+                        to={`${createPageUrl('Detail')}?type=group&id=${group.id}`}
+                        className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                          <img 
+                            src={group.image_url || 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200'} 
+                            alt={group.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 truncate">{group.name}</h4>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Users className="w-3 h-3" />
+                            <span>{group.member_count || 0} members</span>
+                          </div>
+                        </div>
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Group</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="commented">
-                <p className="text-center text-gray-500 py-8">
-                  {comments.length === 0 ? 'No comments yet' : `${comments.length} comments`}
-                </p>
+                {comments.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No comments yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {comments.map((comment) => (
+                      <Link
+                        key={comment.id}
+                        to={`${createPageUrl('Detail')}?type=${comment.item_type}&id=${comment.item_id}`}
+                        className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <MessageSquare className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-gray-700 line-clamp-2">{comment.content}</p>
+                            <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                              <span className="capitalize">{comment.item_type}</span>
+                              <span>•</span>
+                              <span>{comment.created_at ? format(new Date(comment.created_at), 'MMM d, yyyy') : ''}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

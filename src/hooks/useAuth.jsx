@@ -68,16 +68,27 @@ export function AuthProvider({ children }) {
 
   // Handle redirect after authentication
   const handlePostAuthRedirect = (userProfile) => {
-    // Only redirect if we're on Landing or root
     const currentPath = window.location.pathname.toLowerCase()
-    if (currentPath === '/' || currentPath === '/landing') {
+    
+    // Pages where we should redirect after auth
+    const authRedirectPages = ['/', '/landing', '/selectcollege']
+    
+    if (authRedirectPages.includes(currentPath)) {
       // Check if user has completed onboarding (has selected campus)
-      if (!userProfile?.selected_campus_id) {
+      if (!userProfile?.selected_campus_id || !userProfile?.registration_complete) {
         window.location.href = '/Onboarding'
       } else {
         window.location.href = '/Home'
       }
     }
+  }
+  
+  // Get redirect destination for authenticated user (used by components)
+  const getAuthRedirectPath = (userProfile) => {
+    if (!userProfile?.selected_campus_id || !userProfile?.registration_complete) {
+      return '/Onboarding'
+    }
+    return '/Home'
   }
 
   // Initialize auth state
@@ -257,6 +268,7 @@ export function AuthProvider({ children }) {
     isAdmin,
     isRegistrationComplete,
     getCurrentUser,
+    getAuthRedirectPath: () => getAuthRedirectPath(profile),
     updateProfile,
     signInWithGoogle,
     signInWithPassword,

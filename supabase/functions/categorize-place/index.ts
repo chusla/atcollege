@@ -70,7 +70,7 @@ Example description style: "A popular BBQ spot known for its authentic Texas-sty
         'anthropic-version': ANTHROPIC_VERSION
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-3-5-sonnet-latest', // Claude 3.5 Sonnet - stable alias
         max_tokens: 300,
         messages: [
           {

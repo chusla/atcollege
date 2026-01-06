@@ -8,7 +8,6 @@ import { Card } from '@/components/ui/card';
 import { ArrowLeft, MapPin, Calendar, Clock, Star, Heart, Users, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 import { GoogleMap, Marker } from '@react-google-maps/api';
-import GoogleMapsProvider from '@/components/maps/GoogleMapsProvider';
 import ThreadedComment from '../components/detail/ThreadedComment';
 
 export default function Detail() {
@@ -25,6 +24,8 @@ export default function Detail() {
   const itemId = urlParams.get('id');
 
   useEffect(() => {
+    // Scroll to top when navigating to detail page
+    window.scrollTo(0, 0);
     loadData();
   }, [itemId, itemType]);
 
@@ -318,10 +319,10 @@ export default function Detail() {
               <Card className="p-4 mb-6">
                 <h3 className="font-semibold text-gray-900 mb-3">Location</h3>
                 <div className="h-64 rounded-lg overflow-hidden bg-gray-100">
-                  <GoogleMapsProvider>
+                  {window.google ? (
                     <GoogleMap
                       mapContainerStyle={{ width: '100%', height: '100%' }}
-                      center={{ lat: item.latitude, lng: item.longitude }}
+                      center={{ lat: parseFloat(item.latitude), lng: parseFloat(item.longitude) }}
                       zoom={15}
                       options={{
                         streetViewControl: false,
@@ -331,11 +332,15 @@ export default function Detail() {
                       }}
                     >
                       <Marker
-                        position={{ lat: item.latitude, lng: item.longitude }}
+                        position={{ lat: parseFloat(item.latitude), lng: parseFloat(item.longitude) }}
                         title={item.title || item.name}
                       />
                     </GoogleMap>
-                  </GoogleMapsProvider>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                    </div>
+                  )}
                 </div>
                 <p className="text-sm text-gray-600 mt-2">{item.location || item.address}</p>
               </Card>

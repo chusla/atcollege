@@ -93,7 +93,7 @@ The results array must have exactly ${placesToProcess.length} items, one for eac
         'anthropic-version': ANTHROPIC_VERSION
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929', // Latest Claude Sonnet 4.5 model
+        model: 'claude-3-5-sonnet-latest', // Claude 3.5 Sonnet - stable alias
         max_tokens: 2000, // More tokens for batch processing
         messages: [
           {

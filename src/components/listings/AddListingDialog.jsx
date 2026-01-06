@@ -156,7 +156,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             {/* Image Upload */}
             <div>
               <Label>Image</Label>
-              <div className="mt-2 border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
+              <div className="mt-2 border-2 border-dashed border-gray-200 rounded-lg p-4 text-center relative">
                 {imageUrl ? (
                   <img src={imageUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
                 ) : (

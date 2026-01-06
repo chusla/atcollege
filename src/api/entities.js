@@ -353,7 +353,21 @@ export const Place = {
         .select()
         .single()
       
-      if (error) throw error
+      if (error) {
+        // Handle duplicate key error - place already exists
+        if (error.code === '23505' && googlePlaceData.google_place_id) {
+          console.log('📝 [PLACE] Place already exists, fetching existing:', googlePlaceData.name);
+          const { data: existingPlace, error: fetchError } = await supabase
+            .from('places')
+            .select()
+            .eq('google_place_id', googlePlaceData.google_place_id)
+            .single();
+          
+          if (fetchError) throw fetchError;
+          return existingPlace;
+        }
+        throw error;
+      }
       return data
     } catch (error) {
       console.error('Error creating place from Google data:', error)

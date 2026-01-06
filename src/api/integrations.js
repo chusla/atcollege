@@ -4,9 +4,26 @@ import { supabase } from './supabaseClient'
 export async function UploadFile({ file, bucket = 'uploads' }) {
   if (!file) throw new Error('No file provided')
   
+  // Validate file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024 // 5MB
+  if (file.size > maxSize) {
+    throw new Error('File size exceeds 5MB limit')
+  }
+  
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.')
+  }
+  
+  // Get current user for folder path
+  const { data: { user } } = await supabase.auth.getUser()
+  
   const fileExt = file.name.split('.').pop()
   const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-  const filePath = `public/${fileName}`
+  // Use user ID as folder if authenticated, otherwise use 'public'
+  const folder = user?.id || 'public'
+  const filePath = `${folder}/${fileName}`
   
   const { data, error } = await supabase.storage
     .from(bucket)
@@ -15,7 +32,16 @@ export async function UploadFile({ file, bucket = 'uploads' }) {
       upsert: false
     })
   
-  if (error) throw error
+  if (error) {
+    console.error('Upload error details:', error)
+    if (error.message?.includes('Bucket not found')) {
+      throw new Error(`Storage bucket "${bucket}" does not exist. Please create it in the Supabase dashboard.`)
+    }
+    if (error.message?.includes('row-level security') || error.statusCode === 403) {
+      throw new Error('Permission denied. Please check storage bucket policies.')
+    }
+    throw error
+  }
   
   // Get public URL
   const { data: { publicUrl } } = supabase.storage

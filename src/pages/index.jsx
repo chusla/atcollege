@@ -1,6 +1,7 @@
 import Layout from "./Layout.jsx";
 import { AuthProvider } from "@/hooks/useAuth";
 import GoogleMapsProvider from "@/components/maps/GoogleMapsProvider";
+import ScrollToTop from "@/components/ScrollToTop";
 import Admin from "./Admin";
 import AdminBatchUpload from "./AdminBatchUpload";
 import AdminCampuses from "./AdminCampuses";
@@ -62,8 +63,10 @@ function PagesContent() {
     const currentPage = _getCurrentPage(location.pathname);
     
     return (
-        <Layout currentPageName={currentPage}>
-            <Routes>            
+        <>
+            <ScrollToTop />
+            <Layout currentPageName={currentPage}>
+                <Routes>            
                 <Route path="/" element={<Landing />} />
                 <Route path="/Admin" element={<Admin />} />
                 <Route path="/AdminBatchUpload" element={<AdminBatchUpload />} />
@@ -83,8 +86,9 @@ function PagesContent() {
                 <Route path="/Saved" element={<Saved />} />
                 <Route path="/SelectCollege" element={<SelectCollege />} />
                 <Route path="/Onboarding" element={<Onboarding />} />
-            </Routes>
-        </Layout>
+                </Routes>
+            </Layout>
+        </>
     );
 }
 
