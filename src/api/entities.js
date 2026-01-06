@@ -335,6 +335,9 @@ export const Place = {
 
       console.log('📝 [PLACE] Creating new place:', googlePlaceData.name);
 
+      // Get current user for created_by field
+      const { data: { user } } = await supabase.auth.getUser();
+
       const placeData = {
         name: googlePlaceData.name,
         address: googlePlaceData.address,
@@ -353,7 +356,8 @@ export const Place = {
         source: 'google_maps',
         status: 'pending',
         categorization_status: 'pending',
-        imported_at: new Date().toISOString()
+        imported_at: new Date().toISOString(),
+        created_by: user?.id || null // Set creator for RLS policies
       }
 
       if (campusId) {
