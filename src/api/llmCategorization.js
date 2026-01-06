@@ -107,6 +107,7 @@ export async function categorizePlace(placeId) {
  * Map LLM category to schema category
  */
 function mapLLMCategoryToSchema(llmCategory) {
+  // Allowed categories: 'Bars', 'Restaurants', 'Cafes', 'Housing', 'Study Spots', 'Entertainment', 'Shopping', 'Other'
   const categoryMap = {
     'bar': 'Bars',
     'bars': 'Bars',
@@ -115,18 +116,34 @@ function mapLLMCategoryToSchema(llmCategory) {
     'cafe': 'Cafes',
     'cafes': 'Cafes',
     'coffee': 'Cafes',
-    'gym': 'Gym',
-    'fitness': 'Gym',
-    'library': 'Library',
+    'coffee shop': 'Cafes',
+    'gym': 'Other', // Gym not in allowed list, map to Other
+    'fitness': 'Other', // Fitness not in allowed list, map to Other
+    'library': 'Study Spots', // Library maps to Study Spots
     'study spot': 'Study Spots',
+    'study spots': 'Study Spots',
     'study': 'Study Spots',
     'entertainment': 'Entertainment',
     'shopping': 'Shopping',
-    'housing': 'Housing'
+    'housing': 'Housing',
+    'food': 'Restaurants',
+    'dining': 'Restaurants',
+    'store': 'Shopping',
+    'retail': 'Shopping'
   };
 
   const normalized = llmCategory?.toLowerCase().trim();
-  return categoryMap[normalized] || 'Other';
+  const mapped = categoryMap[normalized];
+  
+  // Validate the mapped category is in the allowed list
+  const allowedCategories = ['Bars', 'Restaurants', 'Cafes', 'Housing', 'Study Spots', 'Entertainment', 'Shopping', 'Other'];
+  if (mapped && allowedCategories.includes(mapped)) {
+    return mapped;
+  }
+  
+  // Fallback to 'Other' if mapping is invalid
+  console.warn(`Invalid category mapping: ${llmCategory} -> ${mapped}, using 'Other'`);
+  return 'Other';
 }
 
 /**

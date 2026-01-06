@@ -296,9 +296,13 @@ function formatPlaceResult(result) {
   if (photoName) {
     // New API: Use photo name to construct URL
     photoUrl = getPhotoUrlFromName(photoName, 800);
+    console.log('📸 [FORMAT] New API photo:', { photoName: photoName.substring(0, 50) + '...', photoUrl: photoUrl?.substring(0, 100) + '...' });
   } else if (photoRef) {
     // Legacy API: Use photo reference
     photoUrl = getPhotoUrl(photoRef, 800);
+    console.log('📸 [FORMAT] Legacy API photo:', { photoRef: photoRef.substring(0, 50) + '...', photoUrl: photoUrl?.substring(0, 100) + '...' });
+  } else {
+    console.warn('📸 [FORMAT] No photo found in result:', { hasPhotos: !!result.photos, photoCount: result.photos?.length || 0 });
   }
   
   return {
@@ -342,8 +346,12 @@ function formatPlaceDetails(result) {
   let photoUrl = null;
   if (photoName) {
     photoUrl = getPhotoUrlFromName(photoName, 800);
+    console.log('📸 [DETAILS] New API photo:', { photoName: photoName.substring(0, 50) + '...', photoUrl: photoUrl?.substring(0, 100) + '...' });
   } else if (photoRef) {
     photoUrl = getPhotoUrl(photoRef, 800);
+    console.log('📸 [DETAILS] Legacy API photo:', { photoRef: photoRef.substring(0, 50) + '...', photoUrl: photoUrl?.substring(0, 100) + '...' });
+  } else {
+    console.warn('📸 [DETAILS] No photo found:', { hasPhotos: !!result.photos, photoCount: result.photos?.length || 0 });
   }
   
   // Editorial summary: New API uses editorialSummary, legacy uses editorial_summary

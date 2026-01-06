@@ -15,19 +15,18 @@ export default function SearchBar({ onSearch }) {
   };
 
   const handleQueryChange = (e) => {
-    const newQuery = e.target.value;
-    setQuery(newQuery);
-    onSearch(newQuery, radius, category);
+    setQuery(e.target.value);
+    // Don't trigger search on every keystroke - only on button press
   };
 
   const handleCategoryChange = (value) => {
     setCategory(value);
-    onSearch(query, radius, value);
+    // Don't trigger search on category change - only on button press
   };
 
   const handleRadiusChange = (value) => {
     setRadius(value);
-    onSearch(query, value, category);
+    // Don't trigger search on radius change - only on button press
   };
 
   return (
