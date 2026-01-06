@@ -86,11 +86,10 @@ export function AuthProvider({ children }) {
     if (initializedRef.current) return
     initializedRef.current = true
 
-    // Safety timeout - never show loading for more than 3 seconds
+    // Safety timeout - complete loading after 2 seconds max (handles slow networks)
     const safetyTimeout = setTimeout(() => {
-      console.warn('Auth initialization timed out, forcing load completion')
       setLoading(false)
-    }, 3000)
+    }, 2000)
 
     const initAuth = async () => {
       try {
@@ -132,22 +131,21 @@ export function AuthProvider({ children }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event)
-        
+      (event, session) => {
         if (session?.user) {
           setUser(session.user)
-          const prof = await fetchProfile(session.user)
           
-          // Only redirect on SIGNED_IN if it's a fresh OAuth return (not page reload)
-          // Fresh OAuth return has hash fragment or code param, page reload doesn't
-          if (event === 'SIGNED_IN' && !initialSessionCheckedRef.current) {
-            const isOAuthReturn = window.location.hash.includes('access_token') ||
-              window.location.search.includes('code=')
-            if (isOAuthReturn) {
-              handlePostAuthRedirect(prof)
+          // Fetch profile in background (don't block with await)
+          fetchProfile(session.user).then(prof => {
+            // Only redirect on SIGNED_IN if it's a fresh OAuth return (not page reload)
+            if (event === 'SIGNED_IN' && !initialSessionCheckedRef.current) {
+              const isOAuthReturn = window.location.hash.includes('access_token') ||
+                window.location.search.includes('code=')
+              if (isOAuthReturn) {
+                handlePostAuthRedirect(prof)
+              }
             }
-          }
+          })
         } else {
           setUser(null)
           setProfile(null)

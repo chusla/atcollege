@@ -31,7 +31,12 @@ export default function Layout({ children, currentPageName }) {
     }
   };
 
-  if (loading) {
+  // Public pages that don't need to wait for auth
+  const publicPages = ['Landing', 'Events', 'Places', 'Opportunities', 'Groups'];
+  const isPublicPage = publicPages.includes(currentPageName);
+
+  // Only show loading spinner for protected pages, not public ones
+  if (loading && !isPublicPage) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
