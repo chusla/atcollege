@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const initializedRef = useRef(false)
+  const initialSessionCheckedRef = useRef(false)
 
   // Fetch user profile, create if doesn't exist
   async function fetchProfile(authUser) {
@@ -110,7 +111,7 @@ export function AuthProvider({ children }) {
           
           // Fetch profile in background - don't block auth
           fetchProfile(session.user).then(prof => {
-            // Check if this is returning from OAuth
+            // Check if this is returning from OAuth (fresh login)
             const isReturningFromOAuth = window.location.hash.includes('access_token') ||
               window.location.search.includes('code=')
             if (isReturningFromOAuth && prof) {
@@ -120,6 +121,9 @@ export function AuthProvider({ children }) {
             console.error('Background profile fetch failed:', err)
           })
         }
+        
+        // Mark initial session as checked (page reload vs fresh OAuth)
+        initialSessionCheckedRef.current = true
       } catch (error) {
         console.error('Error initializing auth:', error)
       } finally {
@@ -139,9 +143,14 @@ export function AuthProvider({ children }) {
           setUser(session.user)
           const prof = await fetchProfile(session.user)
           
-          // Handle fresh login event - redirect appropriately
-          if (event === 'SIGNED_IN') {
-            handlePostAuthRedirect(prof)
+          // Only redirect on SIGNED_IN if it's a fresh OAuth return (not page reload)
+          // Fresh OAuth return has hash fragment or code param, page reload doesn't
+          if (event === 'SIGNED_IN' && !initialSessionCheckedRef.current) {
+            const isOAuthReturn = window.location.hash.includes('access_token') ||
+              window.location.search.includes('code=')
+            if (isOAuthReturn) {
+              handlePostAuthRedirect(prof)
+            }
           }
         } else {
           setUser(null)
