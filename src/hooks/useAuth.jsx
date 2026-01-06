@@ -13,60 +13,57 @@ export function AuthProvider({ children }) {
   async function fetchProfile(authUser) {
     if (!authUser?.id) return null
     
+    // Create basic profile from auth metadata (fallback)
+    const basicProfile = {
+      id: authUser.id,
+      email: authUser.email,
+      full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
+      first_name: authUser.user_metadata?.given_name || '',
+      avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || ''
+    }
+    
     try {
-      // First try to get existing profile
-      let { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
-
-      // If no profile exists, create one
-      if (error && error.code === 'PGRST116') {
-        const newProfile = {
-          id: authUser.id,
-          email: authUser.email,
-          full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
-          first_name: authUser.user_metadata?.given_name || '',
-          avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || '',
-          role: 'user'
-        }
-        
-        const { data: created, error: createError } = await supabase
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+      )
+      
+      const fetchPromise = async () => {
+        // First try to get existing profile
+        let { data, error } = await supabase
           .from('profiles')
-          .insert(newProfile)
-          .select()
+          .select('*')
+          .eq('id', authUser.id)
           .single()
-        
-        if (createError) {
-          console.error('Error creating profile:', createError)
-          // Still return what we can from auth user
-          setProfile(newProfile)
-          return newProfile
+
+        // If no profile exists, create one
+        if (error && error.code === 'PGRST116') {
+          const newProfile = { ...basicProfile, role: 'user' }
+          
+          const { data: created, error: createError } = await supabase
+            .from('profiles')
+            .insert(newProfile)
+            .select()
+            .single()
+          
+          if (createError) {
+            console.error('Error creating profile:', createError)
+            return newProfile
+          }
+          return created
+        } else if (error) {
+          console.error('Error fetching profile:', error)
+          return basicProfile
         }
-        data = created
-      } else if (error) {
-        console.error('Error fetching profile:', error)
-        // Return basic profile from auth metadata
-        const basicProfile = {
-          id: authUser.id,
-          email: authUser.email,
-          full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
-          avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || ''
-        }
-        setProfile(basicProfile)
-        return basicProfile
+
+        return data
       }
 
+      const data = await Promise.race([fetchPromise(), timeoutPromise])
       setProfile(data)
       return data
     } catch (error) {
-      console.error('Error in fetchProfile:', error)
-      // Return basic profile even on error
-      const basicProfile = {
-        id: authUser.id,
-        email: authUser.email
-      }
+      console.error('Error in fetchProfile:', error.message)
       setProfile(basicProfile)
       return basicProfile
     }
@@ -105,20 +102,23 @@ export function AuthProvider({ children }) {
         
         if (error) {
           console.error('Error getting session:', error)
-          setLoading(false)
           return
         }
 
         if (session?.user) {
           setUser(session.user)
-          const prof = await fetchProfile(session.user)
           
-          // Check if this is returning from OAuth
-          const isReturningFromOAuth = window.location.hash.includes('access_token') ||
-            window.location.search.includes('code=')
-          if (isReturningFromOAuth) {
-            handlePostAuthRedirect(prof)
-          }
+          // Fetch profile in background - don't block auth
+          fetchProfile(session.user).then(prof => {
+            // Check if this is returning from OAuth
+            const isReturningFromOAuth = window.location.hash.includes('access_token') ||
+              window.location.search.includes('code=')
+            if (isReturningFromOAuth && prof) {
+              handlePostAuthRedirect(prof)
+            }
+          }).catch(err => {
+            console.error('Background profile fetch failed:', err)
+          })
         }
       } catch (error) {
         console.error('Error initializing auth:', error)
