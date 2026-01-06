@@ -1,8 +1,8 @@
-import React, { useCallback, useState, useMemo } from 'react'
-import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api'
+import React, { useCallback, useState, useMemo, useEffect } from 'react'
+import { GoogleMap, OverlayView, InfoWindow } from '@react-google-maps/api'
 import { Link } from 'react-router-dom'
 import { createPageUrl } from '@/utils'
-import { Calendar, MapPin, Star, Clock, Users } from 'lucide-react'
+import { Calendar, MapPin, Star, Users, Utensils, Music, ShoppingBag } from 'lucide-react'
 
 const containerStyle = {
   width: '100%',
@@ -23,7 +23,6 @@ const markerColors = {
 }
 
 // Calculate appropriate zoom level based on radius in miles
-// Zoom levels: ~12 for 5mi, ~14 for 1mi, ~11 for 10mi, ~10 for 25mi
 const getZoomForRadius = (radiusMiles) => {
   if (!radiusMiles || radiusMiles === 'all') return 12;
   const r = parseFloat(radiusMiles);
@@ -37,19 +36,130 @@ const getZoomForRadius = (radiusMiles) => {
   return 9;
 }
 
+// Custom marker component with circular image
+function CustomMarker({ item, itemType, isHovered, isSelected, onClick, onHover, onLeave }) {
+  const color = markerColors[itemType] || markerColors.event;
+  const hasImage = item.image_url;
+  const name = item.title || item.name;
+  
+  // Get category icon
+  const getCategoryIcon = () => {
+    const category = item.category?.toLowerCase() || '';
+    if (category.includes('food') || category.includes('restaurant')) return Utensils;
+    if (category.includes('entertainment') || category.includes('music')) return Music;
+    if (category.includes('shopping')) return ShoppingBag;
+    return MapPin;
+  };
+  
+  const IconComponent = getCategoryIcon();
+  
+  return (
+    <div 
+      className="relative cursor-pointer group"
+      onClick={onClick}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      style={{ transform: 'translate(-50%, -50%)' }}
+    >
+      {/* Main marker - circular with image or icon */}
+      <div 
+        className={`
+          relative transition-all duration-200 ease-out
+          ${isHovered || isSelected ? 'scale-125 z-50' : 'scale-100 z-10'}
+        `}
+      >
+        {/* Outer ring */}
+        <div 
+          className={`
+            rounded-full p-0.5 shadow-lg
+            ${isHovered || isSelected ? 'ring-2 ring-white shadow-xl' : ''}
+          `}
+          style={{ backgroundColor: color }}
+        >
+          {/* Inner circle with image or icon */}
+          <div 
+            className="w-10 h-10 rounded-full overflow-hidden bg-white flex items-center justify-center"
+            style={{ 
+              border: `2px solid ${color}`,
+            }}
+          >
+            {hasImage ? (
+              <img 
+                src={item.image_url} 
+                alt={name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div 
+              className={`w-full h-full items-center justify-center ${hasImage ? 'hidden' : 'flex'}`}
+              style={{ backgroundColor: `${color}15` }}
+            >
+              <IconComponent className="w-5 h-5" style={{ color }} />
+            </div>
+          </div>
+        </div>
+        
+        {/* Pointer triangle */}
+        <div 
+          className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-0 h-0"
+          style={{
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: `8px solid ${color}`,
+          }}
+        />
+      </div>
+      
+      {/* Hover tooltip with name */}
+      <div 
+        className={`
+          absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+          bg-gray-900 text-white text-xs font-medium
+          px-2.5 py-1.5 rounded-lg whitespace-nowrap
+          shadow-lg pointer-events-none
+          transition-all duration-200
+          ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}
+        `}
+        style={{ maxWidth: '200px' }}
+      >
+        <span className="block truncate">{name}</span>
+        {item.rating && (
+          <span className="flex items-center gap-1 mt-0.5 text-yellow-400">
+            <Star className="w-3 h-3 fill-current" />
+            <span className="text-white">{item.rating}</span>
+          </span>
+        )}
+        {/* Tooltip arrow */}
+        <div 
+          className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0"
+          style={{
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: '5px solid #111827',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function ListingsMap({ 
   items = [], 
   itemType = 'event',
   center = null,
   zoom = null,
-  radiusMiles = null, // NEW: Pass radius to auto-calculate zoom
+  radiusMiles = null,
   onMarkerClick = null,
   showInfoWindow = true,
   height = '400px'
 }) {
-  // Calculate zoom from radius if not explicitly provided
   const effectiveZoom = zoom ?? (radiusMiles ? getZoomForRadius(radiusMiles) : 13);
   const [selectedItem, setSelectedItem] = useState(null)
+  const [hoveredItem, setHoveredItem] = useState(null)
   const [map, setMap] = useState(null)
 
   // Filter items that have valid coordinates
@@ -77,8 +187,6 @@ export default function ListingsMap({
   const onLoad = useCallback((map) => {
     setMap(map)
     
-    // Only fit bounds if no explicit center was provided and there are multiple markers
-    // This prevents the map from zooming out to show markers outside the intended area
     if (!center && itemsWithCoords.length > 1) {
       const bounds = new window.google.maps.LatLngBounds()
       itemsWithCoords.forEach(item => {
@@ -129,6 +237,7 @@ export default function ListingsMap({
         center={mapCenter}
         zoom={effectiveZoom}
         onLoad={onLoad}
+        onClick={() => setSelectedItem(null)}
         options={{
           streetViewControl: false,
           mapTypeControl: false,
@@ -143,25 +252,29 @@ export default function ListingsMap({
           ]
         }}
       >
+        {/* Custom markers with images */}
         {itemsWithCoords.map((item) => (
-          <Marker
+          <OverlayView
             key={item.id}
             position={{
               lat: parseFloat(item.latitude),
               lng: parseFloat(item.longitude)
             }}
-            onClick={() => handleMarkerClick(item)}
-            icon={{
-              path: window.google.maps.SymbolPath.CIRCLE,
-              scale: 10,
-              fillColor: markerColors[itemType] || markerColors.event,
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 2,
-            }}
-          />
+            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+          >
+            <CustomMarker
+              item={item}
+              itemType={itemType}
+              isHovered={hoveredItem?.id === item.id}
+              isSelected={selectedItem?.id === item.id}
+              onClick={() => handleMarkerClick(item)}
+              onHover={() => setHoveredItem(item)}
+              onLeave={() => setHoveredItem(null)}
+            />
+          </OverlayView>
         ))}
 
+        {/* Info window on click */}
         {selectedItem && showInfoWindow && (
           <InfoWindow
             position={{
@@ -169,6 +282,9 @@ export default function ListingsMap({
               lng: parseFloat(selectedItem.longitude)
             }}
             onCloseClick={() => setSelectedItem(null)}
+            options={{
+              pixelOffset: new window.google.maps.Size(0, -45)
+            }}
           >
             <Link 
               to={getItemUrl(selectedItem)}
@@ -178,7 +294,7 @@ export default function ListingsMap({
                 <img 
                   src={selectedItem.image_url} 
                   alt={selectedItem.title || selectedItem.name}
-                  className="w-full h-24 object-cover rounded mb-2"
+                  className="w-full h-28 object-cover rounded-lg mb-2"
                 />
               )}
               <h3 className="font-semibold text-gray-900 text-sm mb-1">
@@ -204,6 +320,11 @@ export default function ListingsMap({
                 <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                   <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                   <span>{selectedItem.rating}</span>
+                  {selectedItem.google_place_data?.user_ratings_total && (
+                    <span className="text-gray-400">
+                      ({selectedItem.google_place_data.user_ratings_total})
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -214,7 +335,7 @@ export default function ListingsMap({
                 </div>
               )}
               
-              <span className="text-xs text-orange-500 mt-2 block">
+              <span className="text-xs text-orange-500 mt-2 block font-medium">
                 View details →
               </span>
             </Link>
@@ -224,4 +345,3 @@ export default function ListingsMap({
     </div>
   )
 }
-
