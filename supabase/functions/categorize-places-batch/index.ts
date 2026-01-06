@@ -113,12 +113,31 @@ The results array must have exactly ${placesToProcess.length} items, one for eac
     
     // Extract content from Claude's response
     const content = data.content?.[0]?.text || ''
+    console.log('Raw Claude response:', content.substring(0, 500))
     
     // Parse JSON from response
     let results
     try {
+      // Strip markdown code blocks if present (```json ... ``` or ``` ... ```)
+      let jsonContent = content.trim()
+      
+      // Remove opening ```json or ``` 
+      if (jsonContent.startsWith('```json')) {
+        jsonContent = jsonContent.slice(7)
+      } else if (jsonContent.startsWith('```')) {
+        jsonContent = jsonContent.slice(3)
+      }
+      
+      // Remove closing ```
+      if (jsonContent.endsWith('```')) {
+        jsonContent = jsonContent.slice(0, -3)
+      }
+      
+      jsonContent = jsonContent.trim()
+      console.log('Cleaned JSON content:', jsonContent.substring(0, 200))
+      
       // Try parsing as direct JSON first
-      const parsed = JSON.parse(content)
+      const parsed = JSON.parse(jsonContent)
       
       // Handle both direct array and object with results key
       if (Array.isArray(parsed)) {
@@ -129,13 +148,14 @@ The results array must have exactly ${placesToProcess.length} items, one for eac
         results = parsed.places
       } else {
         // Fallback: try to extract array from content
-        const jsonMatch = content.match(/\[[\s\S]*\]/)
+        const jsonMatch = jsonContent.match(/\[[\s\S]*\]/)
         if (jsonMatch) {
           results = JSON.parse(jsonMatch[0])
         } else {
           throw new Error('No JSON array found in response')
         }
       }
+      console.log('Successfully parsed', results.length, 'results')
     } catch (parseError) {
       console.error('Error parsing Claude response:', content)
       console.error('Parse error:', parseError)

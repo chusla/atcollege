@@ -90,19 +90,45 @@ Example description style: "A popular BBQ spot known for its authentic Texas-sty
     
     // Extract content from Claude's response
     const content = data.content?.[0]?.text || ''
+    console.log('Raw Claude response:', content.substring(0, 300))
     
     // Parse JSON from response
     let result
     try {
-      // Extract JSON from response (handle cases where response includes markdown)
-      const jsonMatch = content.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('No JSON found in response')
+      // Strip markdown code blocks if present (```json ... ``` or ``` ... ```)
+      let jsonContent = content.trim()
+      
+      // Remove opening ```json or ``` 
+      if (jsonContent.startsWith('```json')) {
+        jsonContent = jsonContent.slice(7)
+      } else if (jsonContent.startsWith('```')) {
+        jsonContent = jsonContent.slice(3)
       }
+      
+      // Remove closing ```
+      if (jsonContent.endsWith('```')) {
+        jsonContent = jsonContent.slice(0, -3)
+      }
+      
+      jsonContent = jsonContent.trim()
+      console.log('Cleaned JSON content:', jsonContent.substring(0, 200))
+      
+      // Try direct parsing first
+      try {
+        result = JSON.parse(jsonContent)
+      } catch {
+        // Fallback: Extract JSON object from response
+        const jsonMatch = jsonContent.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0])
+        } else {
+          throw new Error('No JSON found in response')
+        }
+      }
+      console.log('Successfully parsed result:', result.category)
     } catch (parseError) {
       console.error('Error parsing Claude response:', content)
+      console.error('Parse error:', parseError)
       throw new Error('Failed to parse LLM response')
     }
 
