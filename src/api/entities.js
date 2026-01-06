@@ -248,13 +248,32 @@ export const Place = {
   },
   async findByGooglePlaceId(googlePlaceId) {
     try {
+      // Handle duplicates by getting the most recent one (or first approved)
       const { data, error } = await supabase
         .from('places')
         .select('*')
         .eq('google_place_id', googlePlaceId)
+        .order('imported_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
       
-      if (error) throw error
+      if (error) {
+        // If maybeSingle fails due to multiple rows, try without it
+        if (error.code === 'PGRST116') {
+          const { data: allData, error: allError } = await supabase
+            .from('places')
+            .select('*')
+            .eq('google_place_id', googlePlaceId)
+            .order('imported_at', { ascending: false, nullsFirst: false })
+            .order('created_at', { ascending: false })
+            .limit(1)
+          
+          if (allError) throw allError
+          return allData?.[0] || null
+        }
+        throw error
+      }
       return data
     } catch (error) {
       console.error('Error finding place by Google Place ID:', error)
