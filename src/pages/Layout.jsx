@@ -169,12 +169,31 @@ export default function Layout({ children, currentPageName }) {
                   Social Life in and Around Campus
                 </span>
               </div>
-              <Button
-                onClick={handleSignIn}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6"
-              >
-                Sign up
-              </Button>
+              {isAuthenticated() ? (
+                <div className="flex items-center gap-3">
+                  <Link to={createPageUrl('Home')}>
+                    <Button className="bg-white/20 hover:bg-white/30 text-white rounded-full px-6 backdrop-blur-sm">
+                      Go to Home
+                    </Button>
+                  </Link>
+                  <Link to={createPageUrl('Profile')}>
+                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                      {user?.avatar_url ? (
+                        <img src={user.avatar_url} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        <User className="w-5 h-5 text-white" />
+                      )}
+                    </div>
+                  </Link>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleSignIn}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6"
+                >
+                  Sign up
+                </Button>
+              )}
             </div>
           </div>
         </header>

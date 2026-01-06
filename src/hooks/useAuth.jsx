@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, createContext, useContext, useRef } from 'react'
 import { supabase } from '@/api/supabaseClient'
 
 const AuthContext = createContext(null)
@@ -7,48 +7,146 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const initializedRef = useRef(false)
 
-  // Fetch user profile
-  async function fetchProfile(userId) {
+  // Fetch user profile, create if doesn't exist
+  async function fetchProfile(authUser) {
+    if (!authUser?.id) return null
+    
     try {
-      const { data, error } = await supabase
+      // First try to get existing profile
+      let { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', authUser.id)
         .single()
 
-      if (error) throw error
+      // If no profile exists, create one
+      if (error && error.code === 'PGRST116') {
+        const newProfile = {
+          id: authUser.id,
+          email: authUser.email,
+          full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
+          first_name: authUser.user_metadata?.given_name || '',
+          avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || '',
+          role: 'user'
+        }
+        
+        const { data: created, error: createError } = await supabase
+          .from('profiles')
+          .insert(newProfile)
+          .select()
+          .single()
+        
+        if (createError) {
+          console.error('Error creating profile:', createError)
+          // Still return what we can from auth user
+          setProfile(newProfile)
+          return newProfile
+        }
+        data = created
+      } else if (error) {
+        console.error('Error fetching profile:', error)
+        // Return basic profile from auth metadata
+        const basicProfile = {
+          id: authUser.id,
+          email: authUser.email,
+          full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
+          avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || ''
+        }
+        setProfile(basicProfile)
+        return basicProfile
+      }
+
       setProfile(data)
       return data
     } catch (error) {
-      console.error('Error fetching profile:', error)
-      return null
+      console.error('Error in fetchProfile:', error)
+      // Return basic profile even on error
+      const basicProfile = {
+        id: authUser.id,
+        email: authUser.email
+      }
+      setProfile(basicProfile)
+      return basicProfile
+    }
+  }
+
+  // Handle redirect after authentication
+  const handlePostAuthRedirect = (userProfile) => {
+    // Only redirect if we're on Landing or root
+    const currentPath = window.location.pathname.toLowerCase()
+    if (currentPath === '/' || currentPath === '/landing') {
+      // Check if user has completed onboarding (has selected campus)
+      if (!userProfile?.selected_campus_id) {
+        window.location.href = '/Onboarding'
+      } else {
+        window.location.href = '/Home'
+      }
     }
   }
 
   // Initialize auth state
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      }
+    // Prevent double initialization in React strict mode
+    if (initializedRef.current) return
+    initializedRef.current = true
+
+    // Safety timeout - never show loading for more than 5 seconds
+    const safetyTimeout = setTimeout(() => {
+      console.warn('Auth initialization timed out, forcing load completion')
       setLoading(false)
-    })
+    }, 5000)
+
+    const initAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Error getting session:', error)
+          setLoading(false)
+          return
+        }
+
+        if (session?.user) {
+          setUser(session.user)
+          const prof = await fetchProfile(session.user)
+          
+          // Check if this is returning from OAuth
+          const isReturningFromOAuth = window.location.hash.includes('access_token') ||
+            window.location.search.includes('code=')
+          if (isReturningFromOAuth) {
+            handlePostAuthRedirect(prof)
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+      } finally {
+        clearTimeout(safetyTimeout)
+        setLoading(false)
+      }
+    }
+
+    initAuth()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null)
+        console.log('Auth state change:', event)
         
         if (session?.user) {
-          await fetchProfile(session.user.id)
+          setUser(session.user)
+          const prof = await fetchProfile(session.user)
+          
+          // Handle fresh login event - redirect appropriately
+          if (event === 'SIGNED_IN') {
+            handlePostAuthRedirect(prof)
+          }
         } else {
+          setUser(null)
           setProfile(null)
         }
-        
-        setLoading(false)
       }
     )
 
@@ -154,7 +252,7 @@ export function AuthProvider({ children }) {
     signInWithPassword,
     signUp,
     signOut,
-    refreshProfile: () => user && fetchProfile(user.id)
+    refreshProfile: () => user && fetchProfile(user)
   }
 
   return (

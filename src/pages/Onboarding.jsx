@@ -47,7 +47,7 @@ export default function Onboarding() {
     if (searchQuery) {
       const filtered = campuses.filter(campus =>
         campus.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        campus.city?.toLowerCase().includes(searchQuery.toLowerCase())
+        campus.location?.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredCampuses(filtered);
     } else {
@@ -116,9 +116,9 @@ export default function Onboarding() {
         avatar_url: avatarUrl,
         first_name: firstName,
         interests: selectedInterests,
-        gender: gender.toLowerCase(),
-        campus_id: selectedCampusId,
-        registration_complete: true
+        gender: gender,
+        selected_campus_id: selectedCampusId,
+        selected_campus_name: selectedCampusName
       });
       navigate(createPageUrl('Home'));
     } catch (error) {
@@ -231,10 +231,9 @@ export default function Onboarding() {
                 <SelectValue placeholder="Select your gender" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-                <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                <SelectItem value="Male">Male</SelectItem>
+                <SelectItem value="Female">Female</SelectItem>
+                <SelectItem value="Other">Other / Prefer not to say</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -280,9 +279,9 @@ export default function Onboarding() {
                         : 'border-transparent hover:bg-gray-50'
                     }`}
                   >
-                    {campus.logo_url ? (
+                    {campus.image_url ? (
                       <img
-                        src={campus.logo_url}
+                        src={campus.image_url}
                         alt={campus.name}
                         className="w-10 h-10 rounded-lg object-cover"
                       />
@@ -293,7 +292,7 @@ export default function Onboarding() {
                     )}
                     <div className="flex-1">
                       <h3 className="font-semibold text-sm text-gray-900">{campus.name}</h3>
-                      <p className="text-xs text-gray-500">{campus.city}, {campus.state}</p>
+                      <p className="text-xs text-gray-500">{campus.location}</p>
                     </div>
                   </button>
                 ))}
