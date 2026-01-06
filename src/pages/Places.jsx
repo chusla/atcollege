@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSearch } from '@/contexts/SearchContext';
 import { Place, SavedItem, Campus } from '@/api/entities';
 import { searchPlaces, getPlaceDetails } from '@/api/googlePlaces';
 import { filterByRadius } from '@/utils/geo';
@@ -15,6 +16,7 @@ import { MapPin, Filter, Building2 } from 'lucide-react';
 
 export default function Places() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
+  const { getCachedPlaces } = useSearch();
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
@@ -73,63 +75,71 @@ export default function Places() {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         
-        // Filter DB results
-        data = (data || []).filter(place => {
-          // Check basic fields
-          if (place.name?.toLowerCase().includes(query)) return true;
-          if (place.description?.toLowerCase().includes(query)) return true;
-          if (place.address?.toLowerCase().includes(query)) return true;
-          if (place.category?.toLowerCase().includes(query)) return true;
-          
-          // Check Google place data for types (e.g., "burger_restaurant", "mexican_restaurant")
-          if (place.google_place_data) {
-            const gpd = place.google_place_data;
-            // Check types array
-            if (gpd.types?.some(t => t.toLowerCase().includes(query))) return true;
-            // Check primary type
-            if (gpd.primaryType?.toLowerCase().includes(query)) return true;
-            // Check editorial summary
-            if (gpd.editorials_summary?.toLowerCase().includes(query)) return true;
-          }
-          
-          return false;
-        });
-
-        // Also search Google Places API to get fresh results
-        try {
-          const radiusMiles = parseFloat(radius) || 5;
-          const googleResults = await searchPlaces({
-            query: searchQuery,
-            location: campusLocation,
-            radius: radiusMiles * 1609.34 // Convert miles to meters
+        // First, check if we have cached results from the Home page search
+        const cachedPlaces = getCachedPlaces(searchQuery);
+        
+        if (cachedPlaces.length > 0) {
+          console.log('📦 [PLACES] Using cached places:', cachedPlaces.length);
+          // Merge cached places with DB results (cached takes priority for fresh data)
+          const dbIds = new Set(data.map(p => p.google_place_id || p.id).filter(Boolean));
+          const newFromCache = cachedPlaces.filter(p => {
+            const id = p.google_place_id || p.id;
+            return !dbIds.has(id);
+          });
+          data = [...data, ...newFromCache];
+        } else {
+          // No cache - filter DB results by text match
+          data = (data || []).filter(place => {
+            // Check basic fields
+            if (place.name?.toLowerCase().includes(query)) return true;
+            if (place.description?.toLowerCase().includes(query)) return true;
+            if (place.address?.toLowerCase().includes(query)) return true;
+            if (place.category?.toLowerCase().includes(query)) return true;
+            
+            // Check Google place data for types
+            if (place.google_place_data) {
+              const gpd = place.google_place_data;
+              if (gpd.types?.some(t => t.toLowerCase().includes(query))) return true;
+              if (gpd.primaryType?.toLowerCase().includes(query)) return true;
+              if (gpd.editorials_summary?.toLowerCase().includes(query)) return true;
+            }
+            
+            return false;
           });
 
-          if (googleResults?.length > 0) {
-            // Check which Google results are already in our DB data
-            const existingIds = new Set(data.map(p => p.google_place_id).filter(Boolean));
-            const newGooglePlaces = googleResults.filter(gp => !existingIds.has(gp.google_place_id));
-            
-            // Create new places in DB (in background) and add to results
-            for (const gp of newGooglePlaces.slice(0, 15)) {
-              try {
-                // Try to get from DB first (might have been created earlier)
-                const existing = await Place.filter({ google_place_id: gp.google_place_id });
-                if (existing?.length > 0) {
-                  data.push(existing[0]);
-                } else {
-                  // Create new place
-                  const newPlace = await Place.createFromGooglePlace(gp, user?.selected_campus_id);
-                  if (newPlace) {
-                    data.push(newPlace);
+          // Only search Google if we have NO cached results (fallback)
+          if (data.length < 5) {
+            try {
+              console.log('📦 [PLACES] No cache, searching Google...');
+              const radiusMiles = parseFloat(radius) || 5;
+              const googleResults = await searchPlaces({
+                query: searchQuery,
+                location: campusLocation,
+                radius: radiusMiles * 1609.34
+              });
+
+              if (googleResults?.length > 0) {
+                const existingIds = new Set(data.map(p => p.google_place_id).filter(Boolean));
+                const newGooglePlaces = googleResults.filter(gp => !existingIds.has(gp.google_place_id));
+                
+                for (const gp of newGooglePlaces.slice(0, 15)) {
+                  try {
+                    const existing = await Place.filter({ google_place_id: gp.google_place_id });
+                    if (existing?.length > 0) {
+                      data.push(existing[0]);
+                    } else {
+                      const newPlace = await Place.createFromGooglePlace(gp, user?.selected_campus_id);
+                      if (newPlace) data.push(newPlace);
+                    }
+                  } catch (err) {
+                    console.warn('Error creating place:', gp.name, err);
                   }
                 }
-              } catch (err) {
-                console.warn('Error creating place:', gp.name, err);
               }
+            } catch (err) {
+              console.warn('Google search failed:', err);
             }
           }
-        } catch (err) {
-          console.warn('Google search failed, showing DB results only:', err);
         }
       }
 

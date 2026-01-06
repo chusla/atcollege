@@ -1,5 +1,6 @@
 import Layout from "./Layout.jsx";
 import { AuthProvider } from "@/hooks/useAuth";
+import { SearchProvider } from "@/contexts/SearchContext";
 import GoogleMapsProvider from "@/components/maps/GoogleMapsProvider";
 import ScrollToTop from "@/components/ScrollToTop";
 import Admin from "./Admin";
@@ -95,11 +96,13 @@ function PagesContent() {
 export default function Pages() {
     return (
         <AuthProvider>
-            <GoogleMapsProvider>
-                <Router>
-                    <PagesContent />
-                </Router>
-            </GoogleMapsProvider>
+            <SearchProvider>
+                <GoogleMapsProvider>
+                    <Router>
+                        <PagesContent />
+                    </Router>
+                </GoogleMapsProvider>
+            </SearchProvider>
         </AuthProvider>
     );
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { useSearch } from '@/contexts/SearchContext';
 import { Event, Place, Opportunity, InterestGroup, Campus } from '@/api/entities';
 import { searchPlaces, searchNearby, getPlaceDetails, milesToMeters, categoryToGoogleType } from '@/api/googlePlaces';
 import { filterByRadius, calculateDistance } from '@/utils/geo';
@@ -17,6 +18,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { getCurrentUser, isAuthenticated, isRegistrationComplete, loading: authLoading, profileLoaded } = useAuth();
+  const { cacheSearch } = useSearch();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -413,6 +415,14 @@ export default function Home() {
       
       console.log('🔍 [SEARCH] All phases complete');
       setLoadingMore(false);
+      
+      // Cache search results for "View All" page
+      setSearchResults(prev => {
+        if (prev.places?.length > 0 && query) {
+          cacheSearch(query, radius, category, prev);
+        }
+        return prev;
+      });
       
     } catch (error) {
       console.error('🔍 [SEARCH] Error:', error);
