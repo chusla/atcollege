@@ -199,12 +199,21 @@ export default function Layout({ children, currentPageName }) {
                   </Link>
                 </div>
               ) : (
-                <Button
-                  onClick={handleSignIn}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6"
-                >
-                  Sign up
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={handleSignIn}
+                    variant="ghost"
+                    className="text-white hover:bg-white/10 rounded-full px-6"
+                  >
+                    Sign in
+                  </Button>
+                  <Button
+                    onClick={handleSignIn}
+                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-6"
+                  >
+                    Sign up
+                  </Button>
+                </div>
               )}
             </div>
           </div>
