@@ -22,11 +22,12 @@ export default function Places() {
   const urlParams = new URLSearchParams(window.location.search);
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
   const [radius, setRadius] = useState(urlParams.get('radius') || '5');
+  const [searchQuery, setSearchQuery] = useState(urlParams.get('search') || '');
 
   useEffect(() => {
     loadPlaces();
     loadSavedItems();
-  }, [category, radius]);
+  }, [category, radius, searchQuery]);
 
   const [campusCenter, setCampusCenter] = useState(null);
 
@@ -64,8 +65,19 @@ export default function Places() {
       
       let data = await Place.filter(filters, { 
         orderBy: { column: 'rating', ascending: false }, 
-        limit: 100 // Get more to filter by radius
+        limit: 200 // Get more to filter by search and radius
       });
+      
+      // Filter by search query if provided
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        data = (data || []).filter(place => 
+          place.name?.toLowerCase().includes(query) ||
+          place.description?.toLowerCase().includes(query) ||
+          place.address?.toLowerCase().includes(query) ||
+          place.category?.toLowerCase().includes(query)
+        );
+      }
 
       // Always filter by radius to only show nearby places
       if (radius !== 'all') {
@@ -134,8 +146,14 @@ export default function Places() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Places</h1>
-          <p className="text-gray-600">Find the best spots in and around campus</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {searchQuery ? `Places: "${searchQuery}"` : 'Places'}
+          </h1>
+          <p className="text-gray-600">
+            {searchQuery 
+              ? `Showing results for "${searchQuery}" near campus`
+              : 'Find the best spots in and around campus'}
+          </p>
         </motion.div>
 
         {/* Filters */}
