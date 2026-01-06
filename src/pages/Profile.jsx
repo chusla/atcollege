@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { UploadFile } from '@/api/integrations';
 import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2, Calendar, Building2, Briefcase, Users } from 'lucide-react';
-import DashboardLayout from '../components/layout/DashboardLayout';
 import { format } from 'date-fns';
 
 export default function Profile() {
@@ -155,8 +154,8 @@ export default function Profile() {
     : 'U';
 
   return (
-    <DashboardLayout active="Profile" user={user}>
-      <div className="max-w-4xl">
+    <div className="min-h-screen bg-gray-50 pt-20 pb-24">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
@@ -436,7 +435,7 @@ export default function Profile() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
 
