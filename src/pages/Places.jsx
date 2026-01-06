@@ -48,15 +48,19 @@ export default function Places() {
         }
       }
 
-      const filters = { status: 'approved' };
+      const filters = {};
       if (category && category !== 'all') {
         filters.category = category.toLowerCase();
       }
       
+      // Use raw query to include both approved and pending statuses
       let data = await Place.filter(filters, { 
         orderBy: { column: 'rating', ascending: false }, 
         limit: 100 // Get more to filter by radius
       });
+      
+      // Filter to approved or pending status (exclude rejected/spam)
+      data = (data || []).filter(p => ['approved', 'pending'].includes(p.status));
 
       // Filter by radius if campus location and radius specified
       if (campusLocation && radius !== 'all') {

@@ -203,7 +203,7 @@ export const Place = {
       let query = supabase
         .from('places')
         .select('*')
-        .eq('status', 'approved')
+        .in('status', ['approved', 'pending']) // Include pending places from Google imports
         .order('rating', { ascending: false, nullsFirst: false })
         .limit(limit)
       
@@ -229,7 +229,7 @@ export const Place = {
       const { data, error } = await supabase
         .from('places')
         .select('*')
-        .eq('status', 'approved')
+        .in('status', ['approved', 'pending']) // Include pending places from Google imports
         .gte('latitude', bbox.minLat)
         .lte('latitude', bbox.maxLat)
         .gte('longitude', bbox.minLng)
