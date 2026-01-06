@@ -333,6 +333,83 @@ export const Place = {
       throw error
     }
   },
+  async updateImageFromGoogle(placeId, googlePlaceId) {
+    try {
+      // Fetch place details to get photo
+      const { getPlaceDetails } = await import('./googlePlaces')
+      const details = await getPlaceDetails(googlePlaceId)
+      
+      if (details?.photo_url) {
+        const { data, error } = await supabase
+          .from('places')
+          .update({ image_url: details.photo_url })
+          .eq('id', placeId)
+          .select()
+          .single()
+        
+        if (error) throw error
+        return data
+      }
+      return null
+    } catch (error) {
+      console.error('Error updating place image from Google:', error)
+      return null
+    }
+  },
+  async updateAllPlaceImages() {
+    try {
+      // Get all places with google_place_id but placeholder/unsplash images
+      const { data: places, error } = await supabase
+        .from('places')
+        .select('id, google_place_id, image_url')
+        .not('google_place_id', 'is', null)
+        .or('image_url.is.null,image_url.ilike.%unsplash%,image_url.ilike.%placeholder%')
+      
+      if (error) throw error
+      if (!places || places.length === 0) {
+        console.log('No places need image updates')
+        return []
+      }
+      
+      console.log(`Updating images for ${places.length} places`)
+      const { getPlaceDetails } = await import('./googlePlaces')
+      const results = []
+      
+      // Process in batches to avoid rate limits
+      for (let i = 0; i < places.length; i++) {
+        const place = places[i]
+        try {
+          const details = await getPlaceDetails(place.google_place_id)
+          if (details?.photo_url) {
+            const { error: updateError } = await supabase
+              .from('places')
+              .update({ image_url: details.photo_url })
+              .eq('id', place.id)
+            
+            if (!updateError) {
+              results.push({ id: place.id, success: true })
+              console.log(`Updated image for place ${place.id}`)
+            } else {
+              results.push({ id: place.id, success: false, error: updateError })
+            }
+          }
+          
+          // Small delay to avoid rate limits
+          if (i < places.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200))
+          }
+        } catch (error) {
+          console.error(`Error updating place ${place.id}:`, error)
+          results.push({ id: place.id, success: false, error: error.message })
+        }
+      }
+      
+      return results
+    } catch (error) {
+      console.error('Error updating all place images:', error)
+      return []
+    }
+  },
   async updateCategorizationStatus(id, status, llmCategory = null, confidence = null) {
     try {
       const updates = {

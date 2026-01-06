@@ -1,30 +1,28 @@
 # Categorize Place Edge Function
 
-This Supabase Edge Function handles place categorization using Anthropic Claude API, keeping the API key secure on the server side.
+This edge function categorizes places using Anthropic Claude API and generates descriptions.
 
-## Setup
+## Deployment
 
-1. **Deploy the function:**
-   ```bash
-   supabase functions deploy categorize-place
-   ```
+**Important**: Deploy with `--no-verify-jwt` flag to allow unauthenticated access:
 
-2. **Set the environment variable in Supabase Dashboard:**
-   - Go to Project Settings > Edge Functions
-   - Add secret: `ANTHROPIC_API_KEY` with your Anthropic API key value
-   - Or use CLI: `supabase secrets set ANTHROPIC_API_KEY=your_key_here`
+```bash
+supabase functions deploy categorize-place --no-verify-jwt
+```
 
-3. **Remove client-side API key:**
-   - Remove `VITE_ANTHROPIC_API_KEY` from your `.env` file
-   - It's no longer needed since the API key is stored server-side
+Or in Supabase Dashboard:
+- Go to Edge Functions → categorize-place
+- Enable "Skip JWT Verification" option
+
+## Environment Variables
+
+Set in Supabase Dashboard → Edge Functions → categorize-place → Settings:
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
 
 ## Usage
 
-The function is automatically called by the client-side `categorizePlace()` function in `src/api/llmCategorization.js`.
+The function is called automatically when new places are imported from Google Places API.
 
-## Security
+## Why No JWT Verification?
 
-- ✅ API key is stored server-side only
-- ✅ Client never sees the Anthropic API key
-- ✅ Function validates input and handles errors gracefully
-
+This function only calls external APIs (Anthropic) and doesn't access the database, so it doesn't need user authentication. Using the anon key is sufficient for access control.

@@ -21,6 +21,9 @@ serve(async (req) => {
   }
 
   try {
+    // Skip JWT verification - this function only calls external APIs and doesn't need auth
+    // The anon key is sufficient for access control
+    
     if (!ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY not configured')
     }

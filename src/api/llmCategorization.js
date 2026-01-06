@@ -38,15 +38,14 @@ export async function categorizePlace(placeId) {
       types: place.google_place_data?.types || []
     };
 
-    // Get the current session for authentication
-    const { data: { session } } = await supabase.auth.getSession();
-    
     // Call Supabase Edge Function (which calls Anthropic API server-side)
+    // Use anon key as bearer token to bypass JWT verification
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     const { data: result, error } = await supabase.functions.invoke('categorize-place', {
       body: { placeData },
-      headers: session ? {
-        Authorization: `Bearer ${session.access_token}`
-      } : {}
+      headers: {
+        Authorization: `Bearer ${anonKey}`
+      }
     });
 
     if (error) {

@@ -226,6 +226,35 @@ export default function Home() {
           console.error('🔍 [SEARCH] Error creating Google Place:', googlePlace.name, error);
         }
       }
+      
+      // Update images for existing places that have google_place_id but placeholder images
+      // This runs in background and doesn't block search results
+      if (existingPlaces.length > 0) {
+        setTimeout(async () => {
+          const placesNeedingImages = existingPlaces.filter(p => {
+            const hasGoogleId = p.google_place_id
+            const hasPlaceholderImage = !p.image_url || 
+              p.image_url.includes('unsplash') || 
+              p.image_url.includes('placeholder')
+            return hasGoogleId && hasPlaceholderImage
+          })
+          
+          if (placesNeedingImages.length > 0) {
+            console.log('🔍 [SEARCH] Updating images for', placesNeedingImages.length, 'existing places')
+            for (const place of placesNeedingImages.slice(0, 10)) { // Limit to 10 per search
+              try {
+                await Place.updateImageFromGoogle(place.id, place.google_place_id)
+              } catch (error) {
+                console.warn('🔍 [SEARCH] Could not update image for place:', place.id, error)
+              }
+            }
+          }
+        }, 2000) // Wait 2 seconds after search completes
+      }
+        } catch (error) {
+          console.error('🔍 [SEARCH] Error creating Google Place:', googlePlace.name, error);
+        }
+      }
       console.log('🔍 [SEARCH] Processed places:', processedGooglePlaces.length, 'New place IDs:', newPlaceIds.length);
 
       // Queue new places for categorization (async, non-blocking)
