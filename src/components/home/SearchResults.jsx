@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Calendar, Building2, Briefcase, Users, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -67,7 +68,14 @@ export default function SearchResults({ results, query, loading }) {
                 className="w-12 h-12 rounded-lg object-cover"
               />
               <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-gray-900 truncate">{item.title || item.name}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-medium text-gray-900 truncate">{item.title || item.name}</h4>
+                  {item.status === 'pending' && (
+                    <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                      New
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 truncate">{item.description || item.category || item.type}</p>
               </div>
             </Link>

@@ -1,39 +1,79 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin } from 'lucide-react';
+import { Search, MapPin, Filter } from 'lucide-react';
 
 export default function SearchBar({ onSearch }) {
   const [query, setQuery] = useState('');
   const [radius, setRadius] = useState('5');
+  const [category, setCategory] = useState('all');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSearch(query, radius);
+    onSearch(query, radius, category);
   };
 
   const handleQueryChange = (e) => {
     const newQuery = e.target.value;
     setQuery(newQuery);
-    onSearch(newQuery, radius);
+    onSearch(newQuery, radius, category);
+  };
+
+  const handleCategoryChange = (value) => {
+    setCategory(value);
+    onSearch(query, radius, value);
+  };
+
+  const handleRadiusChange = (value) => {
+    setRadius(value);
+    onSearch(query, value, category);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-3 items-center">
-      <div className="flex-1 relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <Input
-          type="text"
-          value={query}
-          onChange={handleQueryChange}
-          placeholder="Search events, places, opportunities..."
-          className="pl-12 pr-4 py-6 text-lg rounded-full border-gray-200"
-        />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Main Search Row */}
+      <div className="flex gap-3 items-center">
+        <div className="flex-1 relative min-w-[200px]">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Input
+            type="text"
+            value={query}
+            onChange={handleQueryChange}
+            placeholder="Search events, places, opportunities..."
+            className="pl-12 pr-4 py-6 text-lg rounded-full border-gray-200"
+          />
+        </div>
+        <Button 
+          type="submit" 
+          className="px-8 py-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+        >
+          Search
+        </Button>
       </div>
-      <div className="flex items-center gap-2">
+      
+      {/* Filters Row - Always Visible */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Filter className="w-4 h-4 text-gray-500" />
+        <Select value={category} onValueChange={handleCategoryChange}>
+          <SelectTrigger className="w-40 rounded-full">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="bars">Bars</SelectItem>
+            <SelectItem value="restaurants">Restaurants</SelectItem>
+            <SelectItem value="cafes">Cafes</SelectItem>
+            <SelectItem value="gym">Gym</SelectItem>
+            <SelectItem value="library">Library</SelectItem>
+            <SelectItem value="study_spot">Study Spots</SelectItem>
+            <SelectItem value="entertainment">Entertainment</SelectItem>
+            <SelectItem value="shopping">Shopping</SelectItem>
+          </SelectContent>
+        </Select>
         <MapPin className="w-4 h-4 text-gray-500" />
-        <Select value={radius} onValueChange={setRadius}>
-          <SelectTrigger className="w-32 rounded-full">
+        <Select value={radius} onValueChange={handleRadiusChange}>
+          <SelectTrigger className="w-36 rounded-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

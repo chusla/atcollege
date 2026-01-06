@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Event, Place, Opportunity, InterestGroup } from '@/api/entities';
+import { Event, Place, Opportunity, InterestGroup, Campus } from '@/api/entities';
+import { searchPlaces, searchNearby, milesToMeters, categoryToGoogleType } from '@/api/googlePlaces';
+import { filterByRadius } from '@/utils/geo';
+import { categorizationQueue } from '@/utils/categorizationQueue';
 import IntentModule from '../components/explore/IntentModule';
 import GroupCard from '../components/cards/GroupCard';
 import SearchBar from '../components/home/SearchBar';
@@ -78,10 +81,10 @@ export default function Home() {
     navigate(createPageUrl('Opportunities') + '?' + params.toString());
   };
 
-  const handleSearch = async (query, radius) => {
+  const handleSearch = async (query, radius, category = 'all') => {
     setSearchQuery(query);
     
-    if (!query.trim()) {
+    if (!query.trim() && category === 'all') {
       setSearchResults({
         events: [], places: [], opportunities: [], groups: [],
         eventsCount: 0, placesCount: 0, opportunitiesCount: 0, groupsCount: 0
@@ -91,9 +94,93 @@ export default function Home() {
 
     setSearchLoading(true);
     try {
+      // Get user's campus location
+      let campusLocation = null;
+      if (user?.selected_campus_id) {
+        try {
+          const campus = await Campus.get(user.selected_campus_id);
+          if (campus?.latitude && campus?.longitude) {
+            campusLocation = {
+              lat: parseFloat(campus.latitude),
+              lng: parseFloat(campus.longitude)
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching campus:', error);
+        }
+      }
+
+      // Convert radius to meters for Google Places API
+      const radiusMeters = radius === 'all' ? 50000 : milesToMeters(parseFloat(radius));
+
+      // Search Google Places if we have a campus location and (query or category)
+      let googlePlacesResults = [];
+      if (campusLocation) {
+        try {
+          if (category !== 'all' && !query.trim()) {
+            // Category-only search using nearby search
+            const googleType = categoryToGoogleType(category);
+            googlePlacesResults = await searchNearby(campusLocation, radiusMeters, googleType);
+          } else if (query.trim()) {
+            // Text search with optional category filter
+            const searchQuery = category !== 'all' 
+              ? `${query} ${category}` 
+              : query;
+            googlePlacesResults = await searchPlaces(searchQuery, campusLocation, radiusMeters);
+          }
+        } catch (error) {
+          console.error('Error searching Google Places:', error);
+          // Continue with database search even if Google fails
+        }
+      }
+
+      // Process Google Places results: check for existing, insert new ones
+      const processedGooglePlaces = [];
+      const newPlaceIds = [];
+      for (const googlePlace of googlePlacesResults) {
+        try {
+          // Check if place already exists
+          const existing = await Place.findByGooglePlaceId(googlePlace.google_place_id);
+          
+          if (existing) {
+            // Use existing place if approved or pending
+            if (existing.status === 'approved' || existing.status === 'pending') {
+              processedGooglePlaces.push(existing);
+            }
+          } else {
+            // Create new place from Google data
+            const newPlace = await Place.createFromGooglePlace(googlePlace, user?.selected_campus_id);
+            processedGooglePlaces.push(newPlace);
+            newPlaceIds.push(newPlace.id);
+          }
+        } catch (error) {
+          console.error('Error processing Google Place:', error);
+        }
+      }
+
+      // Queue new places for categorization (async, non-blocking)
+      if (newPlaceIds.length > 0) {
+        categorizationQueue.enqueueBatch(newPlaceIds);
+        // Start processing in background
+        setTimeout(() => categorizationQueue.start(), 1000);
+      }
+
+      // Filter Google Places results by radius if specified
+      let filteredGooglePlaces = processedGooglePlaces;
+      if (campusLocation && radius !== 'all') {
+        filteredGooglePlaces = filterByRadius(
+          processedGooglePlaces,
+          campusLocation.lat,
+          campusLocation.lng,
+          parseFloat(radius)
+        );
+      }
+
+      // Search database for existing places, events, opportunities, groups
+      // Include pending places so newly imported Google Places show up
       const [allEvents, allPlaces, allOpps, allGroups] = await Promise.all([
         Event.filter({ status: 'approved' }),
-        Place.filter({ status: 'approved' }),
+        Place.filter({ status: ['approved', 'pending'] }),
         Opportunity.filter({ status: 'approved' }),
         InterestGroup.filter({ status: 'approved' })
       ]);
@@ -112,6 +199,39 @@ export default function Home() {
         p.description?.toLowerCase().includes(searchLower) ||
         p.category?.toLowerCase().includes(searchLower)
       );
+
+      // Merge Google Places results with database results
+      // Deduplicate by ID
+      const googlePlaceIds = new Set(filteredGooglePlaces.map(p => p.id));
+      const dbPlacesWithoutGoogle = filteredPlaces.filter(p => !googlePlaceIds.has(p.id));
+      const mergedPlaces = [...filteredGooglePlaces, ...dbPlacesWithoutGoogle];
+
+      // Filter by category if specified
+      let finalPlaces = mergedPlaces;
+      if (category !== 'all') {
+        finalPlaces = mergedPlaces.filter(p => 
+          p.category?.toLowerCase() === category.toLowerCase() ||
+          p.llm_category?.toLowerCase() === category.toLowerCase()
+        );
+      }
+
+      // Filter by radius for database places
+      if (campusLocation && radius !== 'all') {
+        const dbPlacesWithDistance = filterByRadius(
+          dbPlacesWithoutGoogle,
+          campusLocation.lat,
+          campusLocation.lng,
+          parseFloat(radius)
+        );
+        // Re-merge with Google places (which already have distance)
+        finalPlaces = [...filteredGooglePlaces, ...dbPlacesWithDistance];
+        if (category !== 'all') {
+          finalPlaces = finalPlaces.filter(p => 
+            p.category?.toLowerCase() === category.toLowerCase() ||
+            p.llm_category?.toLowerCase() === category.toLowerCase()
+          );
+        }
+      }
       
       let filteredOpps = (allOpps || []).filter(o => 
         o.title?.toLowerCase().includes(searchLower) ||
@@ -127,11 +247,11 @@ export default function Home() {
 
       setSearchResults({
         events: filteredEvents.slice(0, 5),
-        places: filteredPlaces.slice(0, 5),
+        places: finalPlaces.slice(0, 5),
         opportunities: filteredOpps.slice(0, 5),
         groups: filteredGroups.slice(0, 5),
         eventsCount: filteredEvents.length,
-        placesCount: filteredPlaces.length,
+        placesCount: finalPlaces.length,
         opportunitiesCount: filteredOpps.length,
         groupsCount: filteredGroups.length
       });
