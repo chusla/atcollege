@@ -14,6 +14,68 @@ import SearchResults from '../components/home/SearchResults';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
 
+/**
+ * Calculate relevance score for a place based on search query
+ * Returns a score 0-100 (100 = perfect match)
+ */
+function calculateRelevanceScore(place, searchQuery) {
+  if (!searchQuery || !searchQuery.trim()) return 100; // No query = all relevant
+  
+  const query = searchQuery.toLowerCase().trim();
+  const queryWords = query.split(/\s+/);
+  let score = 0;
+  
+  // Check name (highest weight)
+  const name = (place.name || '').toLowerCase();
+  if (name.includes(query)) {
+    score += 50; // Full query in name = strong match
+  } else {
+    // Check individual words
+    queryWords.forEach(word => {
+      if (word.length > 2 && name.includes(word)) score += 20;
+    });
+  }
+  
+  // Check Google types (e.g., "bagel_shop", "pizza_restaurant")
+  const types = place.types || place.google_place_data?.types || [];
+  types.forEach(type => {
+    const typeLower = type.toLowerCase().replace(/_/g, ' ');
+    if (typeLower.includes(query)) score += 30;
+    queryWords.forEach(word => {
+      if (word.length > 2 && typeLower.includes(word)) score += 15;
+    });
+  });
+  
+  // Check primary type
+  const primaryType = (place.primaryType || place.google_place_data?.primaryType || '').toLowerCase().replace(/_/g, ' ');
+  if (primaryType.includes(query)) score += 25;
+  
+  // Check category
+  const category = (place.category || '').toLowerCase();
+  if (category.includes(query)) score += 20;
+  
+  // Check description/editorial
+  const description = (place.description || place.editorials_summary || place.google_place_data?.editorials_summary || '').toLowerCase();
+  if (description.includes(query)) score += 10;
+  
+  return Math.min(score, 100);
+}
+
+/**
+ * Filter and sort places by relevance to search query
+ */
+function filterByRelevance(places, searchQuery, minScore = 15) {
+  if (!searchQuery || !searchQuery.trim()) return places;
+  
+  return places
+    .map(place => ({
+      ...place,
+      _relevanceScore: calculateRelevanceScore(place, searchQuery)
+    }))
+    .filter(place => place._relevanceScore >= minScore)
+    .sort((a, b) => b._relevanceScore - a._relevanceScore);
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -313,7 +375,12 @@ export default function Home() {
       // Merge with DB results and show immediately
       const existingDbIds = new Set(filteredDbPlaces.map(p => p.google_place_id).filter(Boolean));
       const newGooglePlaces = quickGooglePlaces.filter(p => !existingDbIds.has(p.google_place_id));
-      let mergedPlaces = [...filteredDbPlaces, ...newGooglePlaces];
+      
+      // Apply relevance filtering to Google results
+      const relevantGooglePlaces = filterByRelevance(newGooglePlaces, query, 15);
+      console.log(`🔍 [SEARCH] Relevance filter: ${newGooglePlaces.length} -> ${relevantGooglePlaces.length} places`);
+      
+      let mergedPlaces = [...filteredDbPlaces, ...relevantGooglePlaces];
       mergedPlaces = processPlacesWithDistance(mergedPlaces, false);
       
       // Update results with quick Google data

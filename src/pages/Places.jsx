@@ -14,6 +14,55 @@ import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { MapPin, Filter, Building2 } from 'lucide-react';
 
+/**
+ * Calculate relevance score for a place based on search query
+ */
+function calculateRelevanceScore(place, searchQuery) {
+  if (!searchQuery || !searchQuery.trim()) return 100;
+  
+  const query = searchQuery.toLowerCase().trim();
+  const queryWords = query.split(/\s+/);
+  let score = 0;
+  
+  const name = (place.name || '').toLowerCase();
+  if (name.includes(query)) {
+    score += 50;
+  } else {
+    queryWords.forEach(word => {
+      if (word.length > 2 && name.includes(word)) score += 20;
+    });
+  }
+  
+  const types = place.types || place.google_place_data?.types || [];
+  types.forEach(type => {
+    const typeLower = type.toLowerCase().replace(/_/g, ' ');
+    if (typeLower.includes(query)) score += 30;
+    queryWords.forEach(word => {
+      if (word.length > 2 && typeLower.includes(word)) score += 15;
+    });
+  });
+  
+  const primaryType = (place.primaryType || place.google_place_data?.primaryType || '').toLowerCase().replace(/_/g, ' ');
+  if (primaryType.includes(query)) score += 25;
+  
+  const category = (place.category || '').toLowerCase();
+  if (category.includes(query)) score += 20;
+  
+  const description = (place.description || place.editorials_summary || '').toLowerCase();
+  if (description.includes(query)) score += 10;
+  
+  return Math.min(score, 100);
+}
+
+function filterByRelevance(places, searchQuery, minScore = 15) {
+  if (!searchQuery || !searchQuery.trim()) return places;
+  
+  return places
+    .map(place => ({ ...place, _relevanceScore: calculateRelevanceScore(place, searchQuery) }))
+    .filter(place => place._relevanceScore >= minScore)
+    .sort((a, b) => b._relevanceScore - a._relevanceScore);
+}
+
 export default function Places() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
   const { getCachedPlaces } = useSearch();
@@ -162,7 +211,13 @@ export default function Places() {
         return true;
       });
 
-      // Limit results after radius filtering
+      // Apply relevance filtering if there's a search query
+      if (searchQuery) {
+        data = filterByRelevance(data, searchQuery, 15);
+        console.log(`🔍 [PLACES] Relevance filter applied: ${data.length} relevant results`);
+      }
+
+      // Limit results after filtering
       setPlaces((data || []).slice(0, 50));
     } catch (error) {
       console.error('Error loading places:', error);
