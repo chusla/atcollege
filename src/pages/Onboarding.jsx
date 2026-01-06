@@ -118,7 +118,8 @@ export default function Onboarding() {
         interests: selectedInterests,
         gender: gender,
         selected_campus_id: selectedCampusId,
-        selected_campus_name: selectedCampusName
+        selected_campus_name: selectedCampusName,
+        registration_complete: true
       });
       navigate(createPageUrl('Home'));
     } catch (error) {
