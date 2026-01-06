@@ -130,27 +130,107 @@ function mapLLMCategoryToSchema(llmCategory) {
 }
 
 /**
- * Batch categorize multiple places
+ * Batch categorize multiple places using batch endpoint
+ * More efficient than individual calls
  */
 export async function categorizePlacesBatch(placeIds) {
-  const results = [];
-  
-  // Process in batches of 5 to avoid overwhelming the API
-  const batchSize = 5;
-  for (let i = 0; i < placeIds.length; i += batchSize) {
-    const batch = placeIds.slice(i, i + batchSize);
-    const batchResults = await Promise.allSettled(
-      batch.map(placeId => categorizePlace(placeId))
-    );
-    results.push(...batchResults);
-    
-    // Small delay between batches
-    if (i + batchSize < placeIds.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  try {
+    if (!placeIds || placeIds.length === 0) {
+      return [];
     }
-  }
 
-  return results;
+    // Get full place data for all places
+    const places = await Promise.all(
+      placeIds.map(async (id) => {
+        const place = await Place.get(id);
+        if (!place) return null;
+        
+        // Update status to processing
+        await Place.updateCategorizationStatus(id, 'processing');
+        
+        return {
+          id: place.id,
+          name: place.name,
+          address: place.address,
+          description: place.description,
+          google_place_data: place.google_place_data,
+          image_url: place.image_url
+        };
+      })
+    );
+
+    // Filter out nulls
+    const validPlaces = places.filter(p => p !== null);
+    
+    if (validPlaces.length === 0) {
+      return [];
+    }
+
+    // Call batch categorization endpoint
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const { data: result, error } = await supabase.functions.invoke('categorize-places-batch', {
+      body: { places: validPlaces },
+      headers: {
+        Authorization: `Bearer ${anonKey}`
+      }
+    });
+
+    if (error) {
+      throw new Error(`Edge Function error: ${error.message}`);
+    }
+
+    if (!result || !result.success) {
+      throw new Error(result?.error || 'Batch categorization failed');
+    }
+
+    // Process results and update places
+    const updatePromises = result.results.map(async (categorized) => {
+      const { placeId, category, confidence, description } = categorized;
+      
+      const updateData = {};
+      if (description) {
+        updateData.description = description;
+      }
+      if (confidence > 0.7 && category) {
+        updateData.category = mapLLMCategoryToSchema(category);
+      }
+
+      // Update categorization status
+      await Place.updateCategorizationStatus(
+        placeId,
+        'completed',
+        category,
+        confidence
+      );
+
+      // Update place with category and description
+      if (Object.keys(updateData).length > 0) {
+        await Place.update(placeId, updateData);
+      }
+
+      return {
+        placeId,
+        success: true,
+        category,
+        confidence
+      };
+    });
+
+    const results = await Promise.allSettled(updatePromises);
+    return results;
+  } catch (error) {
+    console.error('Error in batch categorization:', error);
+    
+    // Mark all as failed
+    await Promise.allSettled(
+      placeIds.map(id => Place.updateCategorizationStatus(id, 'failed'))
+    );
+    
+    return placeIds.map(id => ({
+      status: 'rejected',
+      reason: error.message
+    }));
+  }
 }
 
 /**

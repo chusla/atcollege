@@ -36,7 +36,7 @@ class CategorizationQueue {
   }
 
   /**
-   * Process queue
+   * Process queue in batches for efficiency
    */
   async process() {
     if (this.processing || this.queue.length === 0) {
@@ -46,20 +46,26 @@ class CategorizationQueue {
     this.processing = true;
     this.notifyListeners();
 
+    const { categorizePlacesBatch } = await import('@/api/llmCategorization');
+    
+    // Process in batches of 10
+    const batchSize = 10;
     while (this.queue.length > 0) {
-      const placeId = this.queue.shift();
+      const batch = this.queue.splice(0, batchSize);
       
       try {
-        await categorizePlace(placeId);
+        console.log(`📦 Processing batch of ${batch.length} places for categorization`);
+        await categorizePlacesBatch(batch);
         this.notifyListeners();
       } catch (error) {
-        console.error(`Error categorizing place ${placeId}:`, error);
-        // Don't re-queue failed items to prevent infinite loops
-        // They can be manually retried via admin interface
+        console.error(`Error categorizing batch:`, error);
+        // Mark batch as failed but continue with next batch
       }
 
-      // Small delay between requests
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Small delay between batches
+      if (this.queue.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
 
     this.processing = false;

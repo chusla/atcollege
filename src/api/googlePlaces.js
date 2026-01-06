@@ -23,6 +23,7 @@ function isCacheValid(cached) {
 
 /**
  * Make request to Google Places API via proxy to avoid CORS
+ * New API uses POST, legacy uses GET - proxy handles the conversion
  */
 async function makeRequest(endpoint, params) {
   if (!API_KEY) {
@@ -33,6 +34,7 @@ async function makeRequest(endpoint, params) {
   const proxyUrl = new URL('/api/google-places', window.location.origin);
   proxyUrl.searchParams.append('endpoint', endpoint);
   
+  // Add all params as query params - proxy will convert to POST body for new API
   Object.entries(params).forEach(([key, value]) => {
     if (value !== null && value !== undefined) {
       proxyUrl.searchParams.append(key, value);
@@ -43,10 +45,19 @@ async function makeRequest(endpoint, params) {
 
   const response = await fetch(proxyUrl.toString());
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('🗺️ [GOOGLE PLACES] Proxy error response:', errorText);
     throw new Error(`Google Places API proxy error: ${response.statusText}`);
   }
 
   const data = await response.json();
+  
+  // New API doesn't use status field - check for error field instead
+  if (data.error) {
+    throw new Error(`Google Places API error: ${data.error.message || JSON.stringify(data.error)}`);
+  }
+  
+  // Legacy API status handling
   if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
     return data;
   } else if (data.status === 'REQUEST_DENIED') {
@@ -55,9 +66,12 @@ async function makeRequest(endpoint, params) {
     throw new Error('Google Places API quota exceeded');
   } else if (data.status === 'INVALID_REQUEST') {
     throw new Error(`Invalid request: ${data.error_message || 'Check parameters'}`);
-  } else {
+  } else if (data.status) {
     throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`);
   }
+  
+  // New API format - return as-is
+  return data;
 }
 
 /**
@@ -94,9 +108,12 @@ export async function searchPlaces(query, location, radius = 5000) {
 
     console.log('🗺️ [GOOGLE PLACES] Making API request with params:', params);
     const data = await makeRequest('textsearch', params);
-    console.log('🗺️ [GOOGLE PLACES] API response status:', data.status, 'results:', data.results?.length || 0);
     
-    const results = (data.results || []).map(formatPlaceResult);
+    // Handle new API format (places array) or legacy format (results array)
+    const places = data.places || data.results || [];
+    console.log('🗺️ [GOOGLE PLACES] API response - places:', places.length, 'status:', data.status);
+    
+    const results = places.map(formatPlaceResult);
     console.log('🗺️ [GOOGLE PLACES] Formatted results:', results.length, results.map(r => r.name));
 
     cache.set(cacheKey, { data: results, timestamp: Date.now() });
@@ -146,9 +163,12 @@ export async function searchNearby(location, radius = 5000, type = null) {
 
     console.log('🗺️ [GOOGLE PLACES] Making nearby API request:', params);
     const data = await makeRequest('nearbysearch', params);
-    console.log('🗺️ [GOOGLE PLACES] Nearby API response:', data.status, 'results:', data.results?.length || 0);
     
-    const results = (data.results || []).map(formatPlaceResult);
+    // Handle new API format (places array) or legacy format (results array)
+    const places = data.places || data.results || [];
+    console.log('🗺️ [GOOGLE PLACES] Nearby API response - places:', places.length, 'status:', data.status);
+    
+    const results = places.map(formatPlaceResult);
     console.log('🗺️ [GOOGLE PLACES] Formatted nearby results:', results.length);
 
     cache.set(cacheKey, { data: results, timestamp: Date.now() });
@@ -177,28 +197,57 @@ export async function getPlaceDetails(placeId) {
   }
 
   try {
+    // New API uses place_id in URL path, no fields parameter needed (proxy sets X-Goog-FieldMask header)
     const params = {
-      place_id: placeId,
-      fields: 'name,formatted_address,geometry,place_id,types,rating,user_ratings_total,photos,opening_hours,website,international_phone_number,price_level,business_status,editorial_summary,reviews'
+      place_id: placeId
     };
 
+    console.log('🗺️ [PLACE DETAILS] Fetching details for place_id:', placeId);
     const data = await makeRequest('details', params);
     
-    if (data.result) {
-      const formatted = formatPlaceDetails(data.result);
+    // Handle new API format (direct object) or legacy format (result object)
+    const placeData = data.id ? data : data.result;
+    
+    if (placeData) {
+      // Log raw photos data to debug
+      console.log('🗺️ [PLACE DETAILS] Raw photos data:', {
+        hasPhotosArray: !!placeData.photos,
+        photoCount: placeData.photos?.length || 0,
+        firstPhoto: placeData.photos?.[0] ? {
+          hasName: !!placeData.photos[0].name, // New API uses 'name'
+          hasReference: !!placeData.photos[0].photo_reference, // Legacy uses 'photo_reference'
+          name: placeData.photos[0].name?.substring(0, 50) + '...',
+          reference: placeData.photos[0].photo_reference?.substring(0, 50) + '...',
+          widthPx: placeData.photos[0].widthPx || placeData.photos[0].width,
+          heightPx: placeData.photos[0].heightPx || placeData.photos[0].height
+        } : null
+      });
+      
+      const formatted = formatPlaceDetails(placeData);
+      console.log('🗺️ [PLACE DETAILS] Formatted result:', {
+        name: formatted.name,
+        hasPhotos: formatted.photos?.length > 0,
+        photoCount: formatted.photos?.length || 0,
+        hasPhotoReference: !!formatted.photo_reference,
+        hasPhotoName: !!formatted.photo_name,
+        hasPhotoUrl: !!formatted.photo_url,
+        photoUrl: formatted.photo_url?.substring(0, 100) + '...',
+        hasEditorialSummary: !!formatted.editorials_summary
+      });
       cache.set(cacheKey, { data: formatted, timestamp: Date.now() });
       return formatted;
     }
 
+    console.warn('🗺️ [PLACE DETAILS] No result returned for place_id:', placeId);
     return null;
   } catch (error) {
-    console.error('Error getting place details:', error);
+    console.error('🗺️ [PLACE DETAILS] Error getting place details:', error);
     return null;
   }
 }
 
 /**
- * Get photo URL from Google Places photo reference
+ * Get photo URL from Google Places photo reference (Legacy API)
  * @param {string} photoReference - Photo reference from Google Places
  * @param {number} maxWidth - Maximum width in pixels (default 400)
  * @returns {string} Photo URL
@@ -211,22 +260,59 @@ export function getPhotoUrl(photoReference, maxWidth = 400) {
 }
 
 /**
+ * Get photo URL from Google Places photo name (New API)
+ * @param {string} photoName - Photo name from Places API (New) in format places/PLACE_ID/photos/PHOTO_RESOURCE
+ * @param {number} maxWidth - Maximum width in pixels (default 400)
+ * @returns {string} Photo URL
+ */
+export function getPhotoUrlFromName(photoName, maxWidth = 400) {
+  if (!photoName || !API_KEY) {
+    return null;
+  }
+  // New API format: https://places.googleapis.com/v1/NAME/media?maxHeightPx=400&maxWidthPx=400&key=API_KEY
+  return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=${maxWidth}&maxHeightPx=${maxWidth}&key=${API_KEY}`;
+}
+
+/**
  * Format place result from search
+ * Handles both new API format and legacy format
  */
 function formatPlaceResult(result) {
-  const location = result.geometry?.location;
-  const photoRef = result.photos?.[0]?.photo_reference;
+  // New API format uses different field names
+  const placeId = result.id || result.place_id;
+  const name = result.displayName?.text || result.name;
+  const address = result.formattedAddress || result.formatted_address || result.vicinity;
+  const location = result.location || result.geometry?.location;
+  const lat = location?.latitude || location?.lat;
+  const lng = location?.longitude || location?.lng;
+  
+  // Photos: New API uses 'name', legacy uses 'photo_reference'
+  const firstPhoto = result.photos?.[0];
+  const photoName = firstPhoto?.name; // New API format
+  const photoRef = firstPhoto?.photo_reference; // Legacy format
+  
+  // Generate photo URL - new API needs different handling
+  let photoUrl = null;
+  if (photoName) {
+    // New API: Use photo name to construct URL
+    photoUrl = getPhotoUrlFromName(photoName, 800);
+  } else if (photoRef) {
+    // Legacy API: Use photo reference
+    photoUrl = getPhotoUrl(photoRef, 800);
+  }
+  
   return {
-    google_place_id: result.place_id,
-    name: result.name,
-    address: result.formatted_address || result.vicinity,
-    latitude: location?.lat || null,
-    longitude: location?.lng || null,
+    google_place_id: placeId,
+    name: name,
+    address: address,
+    latitude: lat || null,
+    longitude: lng || null,
     rating: result.rating || null,
-    user_ratings_total: result.user_ratings_total || 0,
+    user_ratings_total: result.userRatingCount || result.user_ratings_total || 0,
     types: result.types || [],
     photo_reference: photoRef || null,
-    photo_url: photoRef ? getPhotoUrl(photoRef, 800) : null, // Get high-res photo
+    photo_name: photoName || null, // New API format
+    photo_url: photoUrl,
     raw_data: result // Store full result for reference
   };
 }
@@ -234,27 +320,54 @@ function formatPlaceResult(result) {
 /**
  * Format place details from details API
  */
+/**
+ * Format place details from details API
+ * Handles both new API format and legacy format
+ */
 function formatPlaceDetails(result) {
-  const location = result.geometry?.location;
-  const photoRef = result.photos?.[0]?.photo_reference;
+  // New API format uses different field names
+  const placeId = result.id || result.place_id;
+  const name = result.displayName?.text || result.name;
+  const address = result.formattedAddress || result.formatted_address;
+  const location = result.location || result.geometry?.location;
+  const lat = location?.latitude || location?.lat;
+  const lng = location?.longitude || location?.lng;
+  
+  // Photos: New API uses 'name', legacy uses 'photo_reference'
+  const firstPhoto = result.photos?.[0];
+  const photoName = firstPhoto?.name; // New API format
+  const photoRef = firstPhoto?.photo_reference; // Legacy format
+  
+  // Generate photo URL
+  let photoUrl = null;
+  if (photoName) {
+    photoUrl = getPhotoUrlFromName(photoName, 800);
+  } else if (photoRef) {
+    photoUrl = getPhotoUrl(photoRef, 800);
+  }
+  
+  // Editorial summary: New API uses editorialSummary, legacy uses editorial_summary
+  const editorialSummary = result.editorialSummary?.text || result.editorial_summary?.overview || null;
+  
   return {
-    google_place_id: result.place_id,
-    name: result.name,
-    address: result.formatted_address,
-    latitude: location?.lat || null,
-    longitude: location?.lng || null,
+    google_place_id: placeId,
+    name: name,
+    address: address,
+    latitude: lat || null,
+    longitude: lng || null,
     rating: result.rating || null,
-    user_ratings_total: result.user_ratings_total || 0,
+    user_ratings_total: result.userRatingCount || result.user_ratings_total || 0,
     types: result.types || [],
-    phone: result.international_phone_number || null,
-    website: result.website || null,
-    opening_hours: result.opening_hours || null,
-    price_level: result.price_level || null,
-    business_status: result.business_status || null,
+    phone: result.internationalPhoneNumber || result.international_phone_number || null,
+    website: result.websiteUri || result.website || null,
+    opening_hours: result.regularOpeningHours || result.opening_hours || null,
+    price_level: result.priceLevel || result.price_level || null,
+    business_status: result.businessStatus || result.business_status || null,
     photos: result.photos || [],
     photo_reference: photoRef || null,
-    photo_url: photoRef ? getPhotoUrl(photoRef, 800) : null,
-    editorials_summary: result.editorial_summary?.overview || null, // Plain English description
+    photo_name: photoName || null, // New API format
+    photo_url: photoUrl,
+    editorials_summary: editorialSummary, // Plain English description
     raw_data: result // Store full result for reference
   };
 }

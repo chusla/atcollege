@@ -314,6 +314,14 @@ export const Place = {
         }
       }
 
+      console.log('📝 [PLACE] Creating place with data:', {
+        name: googlePlaceData.name,
+        hasPhoto: !!googlePlaceData.photo_url,
+        photoUrl: googlePlaceData.photo_url?.substring(0, 80) + '...',
+        hasDescription: !!description,
+        description: description?.substring(0, 80) + '...'
+      });
+
       const placeData = {
         name: googlePlaceData.name,
         address: googlePlaceData.address,

@@ -205,17 +205,38 @@ export default function Home() {
           console.log('🔍 [SEARCH] Creating new place:', googlePlace.name);
           
           // Fetch detailed place info to get photos and description (only for new places)
+          // This is CRITICAL - details API has photos and editorial_summary
           let detailedPlace = googlePlace;
           if (googlePlace.google_place_id) {
             try {
+              console.log('🔍 [SEARCH] Fetching place details for:', googlePlace.name, 'ID:', googlePlace.google_place_id);
               const details = await getPlaceDetails(googlePlace.google_place_id);
               if (details) {
-                detailedPlace = { ...googlePlace, ...details };
-                console.log('🔍 [SEARCH] Fetched place details:', details.name, 'photo:', !!details.photo_url);
+                // Merge details, prioritizing details API data (has photos & descriptions)
+                detailedPlace = { 
+                  ...googlePlace, 
+                  ...details,
+                  // Ensure we use photo_url from details if available, otherwise from search
+                  photo_url: details.photo_url || googlePlace.photo_url || null,
+                  // Ensure we use editorial summary from details
+                  editorials_summary: details.editorials_summary || null
+                };
+                console.log('🔍 [SEARCH] Fetched place details:', {
+                  name: details.name,
+                  hasPhoto: !!detailedPlace.photo_url,
+                  photoUrl: detailedPlace.photo_url?.substring(0, 100) + '...',
+                  hasDescription: !!detailedPlace.editorials_summary,
+                  description: detailedPlace.editorials_summary?.substring(0, 100) + '...'
+                });
+              } else {
+                console.warn('🔍 [SEARCH] No details returned for:', googlePlace.name, '- using search result data');
               }
             } catch (error) {
-              console.warn('🔍 [SEARCH] Could not fetch place details, using search result:', error);
+              console.error('🔍 [SEARCH] Error fetching place details:', googlePlace.name, error);
+              // Continue with search result data
             }
+          } else {
+            console.warn('🔍 [SEARCH] No google_place_id for:', googlePlace.name);
           }
           
           const newPlace = await Place.createFromGooglePlace(detailedPlace, user?.selected_campus_id);
@@ -258,10 +279,11 @@ export default function Home() {
       console.log('🔍 [SEARCH] Processed places:', processedGooglePlaces.length, 'New place IDs:', newPlaceIds.length);
 
       // Queue new places for categorization (async, non-blocking)
+      // Prioritize categorization so places show up in filtered results
       if (newPlaceIds.length > 0) {
         categorizationQueue.enqueueBatch(newPlaceIds);
-        // Start processing in background
-        setTimeout(() => categorizationQueue.start(), 1000);
+        // Start processing immediately in background (batch processing is efficient)
+        setTimeout(() => categorizationQueue.start(), 500);
       }
 
       // Search database for existing places, events, opportunities, groups

@@ -52,7 +52,7 @@ Tasks:
 1. Categorize this place. Categories: Bars, Restaurants, Cafes, Gym, Library, Study Spots, Entertainment, Shopping, Housing, Other
 2. Generate a brief, friendly description (2-3 sentences) that helps students understand what this place is about.
 
-Return ONLY a JSON object with this exact format:
+Return ONLY a JSON object with this exact format (no markdown, no code blocks):
 {
   "category": "Restaurants",
   "confidence": 0.95,
@@ -77,7 +77,9 @@ Example description style: "A popular BBQ spot known for its authentic Texas-sty
             role: 'user',
             content: prompt
           }
-        ]
+        ],
+        // Request structured output (JSON mode)
+        response_format: { type: 'json_object' }
       })
     })
 
