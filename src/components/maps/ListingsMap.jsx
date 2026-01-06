@@ -10,8 +10,8 @@ const containerStyle = {
 }
 
 const defaultCenter = {
-  lat: 29.7174, // Rice University default
-  lng: -95.4018
+  lat: 42.3770, // Harvard University default
+  lng: -71.1167
 }
 
 // Custom marker colors by type

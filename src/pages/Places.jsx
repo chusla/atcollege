@@ -26,7 +26,9 @@ export default function Places() {
   useEffect(() => {
     loadPlaces();
     loadSavedItems();
-  }, [category]);
+  }, [category, radius]);
+
+  const [campusCenter, setCampusCenter] = useState(null);
 
   const loadPlaces = async () => {
     setLoading(true);
@@ -42,25 +44,25 @@ export default function Places() {
               lat: parseFloat(campus.latitude),
               lng: parseFloat(campus.longitude)
             };
+            setCampusCenter(campusLocation);
           }
         } catch (error) {
           console.error('Error fetching campus:', error);
         }
       }
 
-      const filters = {};
+      // Include both approved and pending statuses in the filter
+      const filters = {
+        status: ['approved', 'pending'] // Array triggers .in() query
+      };
       if (category && category !== 'all') {
         filters.category = category.toLowerCase();
       }
       
-      // Use raw query to include both approved and pending statuses
       let data = await Place.filter(filters, { 
         orderBy: { column: 'rating', ascending: false }, 
         limit: 100 // Get more to filter by radius
       });
-      
-      // Filter to approved or pending status (exclude rejected/spam)
-      data = (data || []).filter(p => ['approved', 'pending'].includes(p.status));
 
       // Filter by radius if campus location and radius specified
       if (campusLocation && radius !== 'all') {
@@ -180,7 +182,7 @@ export default function Places() {
 
         {/* Map View */}
         {view === 'map' && !loading && places.length > 0 && (
-          <ResultsMapView items={places} itemType="place" />
+          <ResultsMapView items={places} itemType="place" center={campusCenter} />
         )}
 
         {/* Places Grid */}
