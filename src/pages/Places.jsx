@@ -33,8 +33,10 @@ export default function Places() {
   const loadPlaces = async () => {
     setLoading(true);
     try {
-      // Get user's campus location
-      let campusLocation = null;
+      // Get user's campus location (default to Harvard if not set)
+      const defaultLocation = { lat: 42.3770, lng: -71.1167 }; // Harvard
+      let campusLocation = defaultLocation;
+      
       const user = getCurrentUser();
       if (user?.selected_campus_id) {
         try {
@@ -44,12 +46,13 @@ export default function Places() {
               lat: parseFloat(campus.latitude),
               lng: parseFloat(campus.longitude)
             };
-            setCampusCenter(campusLocation);
           }
         } catch (error) {
           console.error('Error fetching campus:', error);
         }
       }
+      
+      setCampusCenter(campusLocation);
 
       // Include both approved and pending statuses in the filter
       const filters = {
@@ -64,8 +67,8 @@ export default function Places() {
         limit: 100 // Get more to filter by radius
       });
 
-      // Filter by radius if campus location and radius specified
-      if (campusLocation && radius !== 'all') {
+      // Always filter by radius to only show nearby places
+      if (radius !== 'all') {
         data = filterByRadius(
           data || [],
           campusLocation.lat,
@@ -182,7 +185,11 @@ export default function Places() {
 
         {/* Map View */}
         {view === 'map' && !loading && places.length > 0 && (
-          <ResultsMapView items={places} itemType="place" center={campusCenter} />
+          <ResultsMapView 
+            items={places} 
+            itemType="place" 
+            center={campusCenter || { lat: 42.3770, lng: -71.1167 }} // Default to Harvard if no campus
+          />
         )}
 
         {/* Places Grid */}

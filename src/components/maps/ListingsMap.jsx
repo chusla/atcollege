@@ -59,8 +59,9 @@ export default function ListingsMap({
   const onLoad = useCallback((map) => {
     setMap(map)
     
-    // Fit bounds to show all markers
-    if (itemsWithCoords.length > 1) {
+    // Only fit bounds if no explicit center was provided and there are multiple markers
+    // This prevents the map from zooming out to show markers outside the intended area
+    if (!center && itemsWithCoords.length > 1) {
       const bounds = new window.google.maps.LatLngBounds()
       itemsWithCoords.forEach(item => {
         bounds.extend({
@@ -70,7 +71,7 @@ export default function ListingsMap({
       })
       map.fitBounds(bounds, { padding: 50 })
     }
-  }, [itemsWithCoords])
+  }, [center, itemsWithCoords])
 
   const handleMarkerClick = (item) => {
     if (onMarkerClick) {
