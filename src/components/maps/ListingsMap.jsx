@@ -1,8 +1,8 @@
-import React, { useCallback, useState, useMemo, useEffect } from 'react'
+import React, { useCallback, useState, useMemo } from 'react'
 import { GoogleMap, OverlayView, InfoWindow } from '@react-google-maps/api'
 import { Link } from 'react-router-dom'
 import { createPageUrl } from '@/utils'
-import { Calendar, MapPin, Star, Users, Utensils, Music, ShoppingBag } from 'lucide-react'
+import { Calendar, MapPin, Star, Users } from 'lucide-react'
 
 const containerStyle = {
   width: '100%',
@@ -10,19 +10,17 @@ const containerStyle = {
 }
 
 const defaultCenter = {
-  lat: 42.3770, // Harvard University default
+  lat: 42.3770,
   lng: -71.1167
 }
 
-// Custom marker colors by type
 const markerColors = {
-  event: '#f97316', // orange
-  place: '#3b82f6', // blue
-  opportunity: '#22c55e', // green
-  group: '#a855f7' // purple
+  event: '#f97316',
+  place: '#3b82f6',
+  opportunity: '#22c55e',
+  group: '#a855f7'
 }
 
-// Calculate appropriate zoom level based on radius in miles
 const getZoomForRadius = (radiusMiles) => {
   if (!radiusMiles || radiusMiles === 'all') return 12;
   const r = parseFloat(radiusMiles);
@@ -36,113 +34,138 @@ const getZoomForRadius = (radiusMiles) => {
   return 9;
 }
 
-// Custom marker component with circular image
-function CustomMarker({ item, itemType, isHovered, isSelected, onClick, onHover, onLeave }) {
-  const color = markerColors[itemType] || markerColors.event;
+// Teardrop marker component - Yelp/Google style
+function TeardropMarker({ item, itemType, isHovered, isSelected, onClick, onHover, onLeave }) {
+  const color = markerColors[itemType] || markerColors.place;
   const hasImage = item.image_url;
   const name = item.title || item.name;
   
-  // Get category icon
-  const getCategoryIcon = () => {
-    const category = item.category?.toLowerCase() || '';
-    if (category.includes('food') || category.includes('restaurant')) return Utensils;
-    if (category.includes('entertainment') || category.includes('music')) return Music;
-    if (category.includes('shopping')) return ShoppingBag;
-    return MapPin;
-  };
-  
-  const IconComponent = getCategoryIcon();
-  
   return (
     <div 
-      className="relative cursor-pointer group"
+      className="relative cursor-pointer"
       onClick={onClick}
       onMouseEnter={onHover}
       onMouseLeave={onLeave}
-      style={{ transform: 'translate(-50%, -50%)' }}
+      style={{ 
+        transform: 'translate(-50%, -100%)',
+        filter: isHovered || isSelected ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+      }}
     >
-      {/* Main marker - circular with image or icon */}
-      <div 
-        className={`
-          relative transition-all duration-200 ease-out
-          ${isHovered || isSelected ? 'scale-125 z-50' : 'scale-100 z-10'}
-        `}
+      {/* SVG Teardrop shape */}
+      <svg 
+        width={isHovered || isSelected ? "48" : "40"} 
+        height={isHovered || isSelected ? "60" : "50"}
+        viewBox="0 0 40 50" 
+        className="transition-all duration-200 ease-out"
+        style={{ overflow: 'visible' }}
       >
-        {/* Outer ring */}
+        {/* Teardrop path */}
+        <defs>
+          <clipPath id={`clip-${item.id}`}>
+            <circle cx="20" cy="17" r="13" />
+          </clipPath>
+        </defs>
+        
+        {/* Main teardrop shape */}
+        <path 
+          d="M20 0 C8 0 0 8 0 18 C0 28 20 50 20 50 C20 50 40 28 40 18 C40 8 32 0 20 0 Z"
+          fill={color}
+        />
+        
+        {/* White inner circle */}
+        <circle cx="20" cy="17" r="14" fill="white" />
+        
+        {/* Image or colored circle */}
+        {hasImage ? (
+          <image 
+            href={item.image_url}
+            x="7" y="4"
+            width="26" height="26"
+            clipPath={`url(#clip-${item.id})`}
+            preserveAspectRatio="xMidYMid slice"
+          />
+        ) : (
+          <circle cx="20" cy="17" r="13" fill={`${color}20`} />
+        )}
+        
+        {/* Inner border */}
+        <circle 
+          cx="20" cy="17" r="13" 
+          fill="none" 
+          stroke={color} 
+          strokeWidth="2"
+        />
+      </svg>
+      
+      {/* Hover card - Yelp style */}
+      {isHovered && (
         <div 
-          className={`
-            rounded-full p-0.5 shadow-lg
-            ${isHovered || isSelected ? 'ring-2 ring-white shadow-xl' : ''}
-          `}
-          style={{ backgroundColor: color }}
+          className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 animate-fade-in"
+          style={{ minWidth: '180px', maxWidth: '220px' }}
         >
-          {/* Inner circle with image or icon */}
-          <div 
-            className="w-10 h-10 rounded-full overflow-hidden bg-white flex items-center justify-center"
-            style={{ 
-              border: `2px solid ${color}`,
-            }}
-          >
-            {hasImage ? (
-              <img 
-                src={item.image_url} 
-                alt={name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div 
-              className={`w-full h-full items-center justify-center ${hasImage ? 'hidden' : 'flex'}`}
-              style={{ backgroundColor: `${color}15` }}
-            >
-              <IconComponent className="w-5 h-5" style={{ color }} />
+          <div className="bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden">
+            {/* Image preview */}
+            {hasImage && (
+              <div className="h-20 w-full overflow-hidden">
+                <img 
+                  src={item.image_url}
+                  alt={name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            
+            {/* Content */}
+            <div className="p-2.5">
+              <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate">
+                {name}
+              </h4>
+              
+              {/* Rating */}
+              {item.rating && (
+                <div className="flex items-center gap-1 mt-1">
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star 
+                        key={star}
+                        className={`w-3 h-3 ${
+                          star <= Math.round(item.rating) 
+                            ? 'fill-yellow-400 text-yellow-400' 
+                            : 'fill-gray-200 text-gray-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {item.rating}
+                    {item.google_place_data?.user_ratings_total && (
+                      <span> ({item.google_place_data.user_ratings_total})</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              
+              {/* Category/Type badge */}
+              {item.category && (
+                <span 
+                  className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: `${color}15`, color }}
+                >
+                  {item.category}
+                </span>
+              )}
             </div>
           </div>
+          
+          {/* Arrow pointing down */}
+          <div className="flex justify-center">
+            <div 
+              className="w-3 h-3 bg-white border-r border-b border-gray-100 -mt-1.5"
+              style={{ transform: 'rotate(45deg)' }}
+            />
+          </div>
         </div>
-        
-        {/* Pointer triangle */}
-        <div 
-          className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-0 h-0"
-          style={{
-            borderLeft: '6px solid transparent',
-            borderRight: '6px solid transparent',
-            borderTop: `8px solid ${color}`,
-          }}
-        />
-      </div>
-      
-      {/* Hover tooltip with name */}
-      <div 
-        className={`
-          absolute left-1/2 -translate-x-1/2 bottom-full mb-2
-          bg-gray-900 text-white text-xs font-medium
-          px-2.5 py-1.5 rounded-lg whitespace-nowrap
-          shadow-lg pointer-events-none
-          transition-all duration-200
-          ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}
-        `}
-        style={{ maxWidth: '200px' }}
-      >
-        <span className="block truncate">{name}</span>
-        {item.rating && (
-          <span className="flex items-center gap-1 mt-0.5 text-yellow-400">
-            <Star className="w-3 h-3 fill-current" />
-            <span className="text-white">{item.rating}</span>
-          </span>
-        )}
-        {/* Tooltip arrow */}
-        <div 
-          className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0"
-          style={{
-            borderLeft: '5px solid transparent',
-            borderRight: '5px solid transparent',
-            borderTop: '5px solid #111827',
-          }}
-        />
-      </div>
+      )}
     </div>
   )
 }
@@ -162,7 +185,6 @@ export default function ListingsMap({
   const [hoveredItem, setHoveredItem] = useState(null)
   const [map, setMap] = useState(null)
 
-  // Filter items that have valid coordinates
   const itemsWithCoords = useMemo(() => {
     return items.filter(item => 
       item.latitude && item.longitude && 
@@ -171,7 +193,6 @@ export default function ListingsMap({
     )
   }, [items])
 
-  // Calculate center from items or use provided center
   const mapCenter = useMemo(() => {
     if (center) return center
     
@@ -218,7 +239,6 @@ export default function ListingsMap({
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
-  // Check if Google Maps is available
   if (!window.google) {
     return (
       <div 
@@ -252,7 +272,7 @@ export default function ListingsMap({
           ]
         }}
       >
-        {/* Custom markers with images */}
+        {/* Teardrop markers */}
         {itemsWithCoords.map((item) => (
           <OverlayView
             key={item.id}
@@ -262,7 +282,7 @@ export default function ListingsMap({
             }}
             mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
           >
-            <CustomMarker
+            <TeardropMarker
               item={item}
               itemType={itemType}
               isHovered={hoveredItem?.id === item.id}
@@ -274,7 +294,7 @@ export default function ListingsMap({
           </OverlayView>
         ))}
 
-        {/* Info window on click */}
+        {/* Click info window */}
         {selectedItem && showInfoWindow && (
           <InfoWindow
             position={{
@@ -283,18 +303,18 @@ export default function ListingsMap({
             }}
             onCloseClick={() => setSelectedItem(null)}
             options={{
-              pixelOffset: new window.google.maps.Size(0, -45)
+              pixelOffset: new window.google.maps.Size(0, -50)
             }}
           >
             <Link 
               to={getItemUrl(selectedItem)}
-              className="block max-w-xs p-1"
+              className="block w-56"
             >
               {selectedItem.image_url && (
                 <img 
                   src={selectedItem.image_url} 
                   alt={selectedItem.title || selectedItem.name}
-                  className="w-full h-28 object-cover rounded-lg mb-2"
+                  className="w-full h-32 object-cover rounded-lg mb-2"
                 />
               )}
               <h3 className="font-semibold text-gray-900 text-sm mb-1">
@@ -317,14 +337,20 @@ export default function ListingsMap({
               )}
               
               {itemType === 'place' && selectedItem.rating && (
-                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                  <span>{selectedItem.rating}</span>
-                  {selectedItem.google_place_data?.user_ratings_total && (
-                    <span className="text-gray-400">
-                      ({selectedItem.google_place_data.user_ratings_total})
-                    </span>
-                  )}
+                <div className="flex items-center gap-1 text-xs mt-1">
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star 
+                        key={star}
+                        className={`w-3 h-3 ${
+                          star <= Math.round(selectedItem.rating) 
+                            ? 'fill-yellow-400 text-yellow-400' 
+                            : 'fill-gray-200 text-gray-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-gray-500">{selectedItem.rating}</span>
                 </div>
               )}
 
@@ -335,9 +361,12 @@ export default function ListingsMap({
                 </div>
               )}
               
-              <span className="text-xs text-orange-500 mt-2 block font-medium">
-                View details →
-              </span>
+              <div 
+                className="text-xs mt-2 font-medium py-1.5 px-3 rounded-full text-center text-white"
+                style={{ backgroundColor: markerColors[itemType] }}
+              >
+                View Details
+              </div>
             </Link>
           </InfoWindow>
         )}
