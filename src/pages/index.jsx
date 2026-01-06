@@ -1,5 +1,6 @@
 import Layout from "./Layout.jsx";
 import { AuthProvider } from "@/hooks/useAuth";
+import GoogleMapsProvider from "@/components/maps/GoogleMapsProvider";
 import Admin from "./Admin";
 import AdminBatchUpload from "./AdminBatchUpload";
 import AdminCampuses from "./AdminCampuses";
@@ -87,9 +88,11 @@ function PagesContent() {
 export default function Pages() {
     return (
         <AuthProvider>
-            <Router>
-                <PagesContent />
-            </Router>
+            <GoogleMapsProvider>
+                <Router>
+                    <PagesContent />
+                </Router>
+            </GoogleMapsProvider>
         </AuthProvider>
     );
 }

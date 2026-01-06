@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Building2, Briefcase, Users, Upload, Loader2 } from 'lucide-react';
+import PlacesAutocomplete from '@/components/maps/PlacesAutocomplete';
 
 export default function AddListingDialog({ open, onClose, onSuccess }) {
   const { getCurrentUser } = useAuth();
@@ -29,7 +30,9 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
     date: '',
     time: '',
     organization: '',
-    deadline: ''
+    deadline: '',
+    latitude: null,
+    longitude: null
   });
 
   const user = getCurrentUser();
@@ -58,7 +61,9 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
       const baseData = {
         description: formData.description,
         image_url: imageUrl,
-        status: 'pending'
+        status: 'pending',
+        latitude: formData.latitude,
+        longitude: formData.longitude
       };
 
       switch (activeTab) {
@@ -79,7 +84,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             name: formData.name,
             category: formData.category,
             address: formData.address,
-            submitted_by: user?.id
+            created_by: user?.id
           });
           break;
         case 'opportunity':
@@ -88,8 +93,9 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             title: formData.title,
             type: formData.type,
             organization: formData.organization,
+            location: formData.location,
             deadline: formData.deadline,
-            submitted_by: user?.id
+            created_by: user?.id
           });
           break;
         case 'group':
@@ -106,7 +112,8 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
       // Reset form
       setFormData({
         title: '', name: '', description: '', category: '', type: '',
-        location: '', address: '', date: '', time: '', organization: '', deadline: ''
+        location: '', address: '', date: '', time: '', organization: '', deadline: '',
+        latitude: null, longitude: null
       });
       setImageUrl('');
       onSuccess?.();
@@ -198,7 +205,16 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
               </div>
               <div>
                 <Label htmlFor="location">Location</Label>
-                <Input id="location" value={formData.location} onChange={(e) => updateField('location', e.target.value)} />
+                <PlacesAutocomplete
+                  value={formData.location}
+                  onChange={(value) => updateField('location', value)}
+                  onPlaceSelect={(place) => {
+                    updateField('location', place.address || place.name);
+                    updateField('latitude', place.latitude);
+                    updateField('longitude', place.longitude);
+                  }}
+                  placeholder="Search for a venue..."
+                />
               </div>
             </TabsContent>
 
@@ -224,7 +240,16 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
               </div>
               <div>
                 <Label htmlFor="address">Address</Label>
-                <Input id="address" value={formData.address} onChange={(e) => updateField('address', e.target.value)} />
+                <PlacesAutocomplete
+                  value={formData.address}
+                  onChange={(value) => updateField('address', value)}
+                  onPlaceSelect={(place) => {
+                    updateField('address', place.address || place.name);
+                    updateField('latitude', place.latitude);
+                    updateField('longitude', place.longitude);
+                  }}
+                  placeholder="Search for address..."
+                />
               </div>
             </TabsContent>
 

@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { getBoundingBox, filterByRadius } from '@/utils/geo'
 
 // Helper to create entity CRUD operations
 function createEntity(tableName) {
@@ -166,6 +167,32 @@ export const Event = {
   },
   async listUpcoming(campusId = null, limit = 10) {
     return this.listFeatured(campusId, limit)
+  },
+  async listNearby(lat, lng, radiusMiles = 10, limit = 50) {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const bbox = getBoundingBox(lat, lng, radiusMiles)
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('status', 'approved')
+        .gte('date', today)
+        .gte('latitude', bbox.minLat)
+        .lte('latitude', bbox.maxLat)
+        .gte('longitude', bbox.minLng)
+        .lte('longitude', bbox.maxLng)
+        .order('date', { ascending: true })
+        .limit(limit)
+      
+      if (error) throw error
+      
+      // Filter by exact radius and add distance
+      return filterByRadius(data || [], lat, lng, radiusMiles)
+    } catch (error) {
+      console.error('Error in listNearby events:', error)
+      return []
+    }
   }
 }
 
@@ -194,6 +221,30 @@ export const Place = {
   },
   async listPopular(campusId = null, limit = 10) {
     return this.listFeatured(campusId, limit)
+  },
+  async listNearby(lat, lng, radiusMiles = 10, limit = 50) {
+    try {
+      const bbox = getBoundingBox(lat, lng, radiusMiles)
+      
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .eq('status', 'approved')
+        .gte('latitude', bbox.minLat)
+        .lte('latitude', bbox.maxLat)
+        .gte('longitude', bbox.minLng)
+        .lte('longitude', bbox.maxLng)
+        .order('rating', { ascending: false, nullsFirst: false })
+        .limit(limit)
+      
+      if (error) throw error
+      
+      // Filter by exact radius and add distance
+      return filterByRadius(data || [], lat, lng, radiusMiles)
+    } catch (error) {
+      console.error('Error in listNearby places:', error)
+      return []
+    }
   }
 }
 
