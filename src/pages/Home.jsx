@@ -272,10 +272,7 @@ export default function Home() {
           }
         }, 2000) // Wait 2 seconds after search completes
       }
-        } catch (error) {
-          console.error('🔍 [SEARCH] Error creating Google Place:', googlePlace.name, error);
-        }
-      }
+      
       console.log('🔍 [SEARCH] Processed places:', processedGooglePlaces.length, 'New place IDs:', newPlaceIds.length);
 
       // Queue new places for categorization (async, non-blocking)
