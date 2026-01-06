@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Place, SavedItem } from '@/api/entities';
+import { Place, SavedItem, Campus } from '@/api/entities';
+import { filterByRadius } from '@/utils/geo';
 import PlaceCard from '../components/cards/PlaceCard';
 import PlaceRowCard from '../components/results/PlaceRowCard';
 import ViewToggle from '../components/results/ViewToggle';
 import ResultsMapView from '../components/results/ResultsMapView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { MapPin, Filter, Building2 } from 'lucide-react';
 
@@ -29,15 +31,45 @@ export default function Places() {
   const loadPlaces = async () => {
     setLoading(true);
     try {
+      // Get user's campus location
+      let campusLocation = null;
+      const user = getCurrentUser();
+      if (user?.selected_campus_id) {
+        try {
+          const campus = await Campus.get(user.selected_campus_id);
+          if (campus?.latitude && campus?.longitude) {
+            campusLocation = {
+              lat: parseFloat(campus.latitude),
+              lng: parseFloat(campus.longitude)
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching campus:', error);
+        }
+      }
+
       const filters = { status: 'approved' };
       if (category && category !== 'all') {
         filters.category = category.toLowerCase();
       }
-      const data = await Place.filter(filters, { 
+      
+      let data = await Place.filter(filters, { 
         orderBy: { column: 'rating', ascending: false }, 
-        limit: 20 
+        limit: 100 // Get more to filter by radius
       });
-      setPlaces(data || []);
+
+      // Filter by radius if campus location and radius specified
+      if (campusLocation && radius !== 'all') {
+        data = filterByRadius(
+          data || [],
+          campusLocation.lat,
+          campusLocation.lng,
+          parseFloat(radius)
+        );
+      }
+
+      // Limit results after radius filtering
+      setPlaces((data || []).slice(0, 50));
     } catch (error) {
       console.error('Error loading places:', error);
     } finally {

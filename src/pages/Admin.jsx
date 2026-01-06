@@ -9,7 +9,8 @@ import {
   Users, 
   FileText, 
   GraduationCap,
-  Upload
+  Upload,
+  MapPin
 } from 'lucide-react';
 
 export default function Admin() {
@@ -40,6 +41,7 @@ export default function Admin() {
   const adminLinks = [
     { name: 'Dashboard', icon: LayoutDashboard, page: 'AdminDashboard', description: 'Overview and stats' },
     { name: 'Content', icon: FileText, page: 'AdminContent', description: 'Manage listings' },
+    { name: 'Import Places', icon: MapPin, page: 'AdminPlacesImport', description: 'Import from Google Maps' },
     { name: 'Users', icon: Users, page: 'AdminUsers', description: 'User management' },
     { name: 'Campuses', icon: GraduationCap, page: 'AdminCampuses', description: 'Campus settings' },
     { name: 'Batch Upload', icon: Upload, page: 'AdminBatchUpload', description: 'Bulk import data' },

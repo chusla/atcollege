@@ -245,6 +245,83 @@ export const Place = {
       console.error('Error in listNearby places:', error)
       return []
     }
+  },
+  async findByGooglePlaceId(googlePlaceId) {
+    try {
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .eq('google_place_id', googlePlaceId)
+        .maybeSingle()
+      
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error finding place by Google Place ID:', error)
+      return null
+    }
+  },
+  async createFromGooglePlace(googlePlaceData, campusId = null) {
+    try {
+      const placeData = {
+        name: googlePlaceData.name,
+        address: googlePlaceData.address,
+        latitude: googlePlaceData.latitude,
+        longitude: googlePlaceData.longitude,
+        rating: googlePlaceData.rating,
+        google_place_id: googlePlaceData.google_place_id,
+        google_place_data: googlePlaceData.raw_data || googlePlaceData,
+        source: 'google_maps',
+        status: 'pending',
+        categorization_status: 'pending',
+        imported_at: new Date().toISOString()
+      }
+
+      if (campusId) {
+        placeData.campus_id = campusId
+      }
+
+      const { data, error } = await supabase
+        .from('places')
+        .insert(placeData)
+        .select()
+        .single()
+      
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error creating place from Google data:', error)
+      throw error
+    }
+  },
+  async updateCategorizationStatus(id, status, llmCategory = null, confidence = null) {
+    try {
+      const updates = {
+        categorization_status: status,
+        last_categorized_at: new Date().toISOString()
+      }
+
+      if (llmCategory) {
+        updates.llm_category = llmCategory
+      }
+
+      if (confidence !== null) {
+        updates.llm_category_confidence = confidence
+      }
+
+      const { data, error } = await supabase
+        .from('places')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error updating categorization status:', error)
+      throw error
+    }
   }
 }
 

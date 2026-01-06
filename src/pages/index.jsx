@@ -7,6 +7,7 @@ import AdminCampuses from "./AdminCampuses";
 import AdminContent from "./AdminContent";
 import AdminDashboard from "./AdminDashboard";
 import AdminUsers from "./AdminUsers";
+import AdminPlacesImport from "./AdminPlacesImport";
 import Detail from "./Detail";
 import Events from "./Events";
 import Groups from "./Groups";
@@ -28,6 +29,7 @@ const PAGES = {
     AdminContent: AdminContent,
     AdminDashboard: AdminDashboard,
     AdminUsers: AdminUsers,
+    AdminPlacesImport: AdminPlacesImport,
     Detail: Detail,
     Events: Events,
     Groups: Groups,
@@ -69,6 +71,7 @@ function PagesContent() {
                 <Route path="/AdminContent" element={<AdminContent />} />
                 <Route path="/AdminDashboard" element={<AdminDashboard />} />
                 <Route path="/AdminUsers" element={<AdminUsers />} />
+                <Route path="/AdminPlacesImport" element={<AdminPlacesImport />} />
                 <Route path="/Detail" element={<Detail />} />
                 <Route path="/Events" element={<Events />} />
                 <Route path="/Groups" element={<Groups />} />
