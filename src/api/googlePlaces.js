@@ -22,25 +22,28 @@ function isCacheValid(cached) {
 }
 
 /**
- * Make request to Google Places API
+ * Make request to Google Places API via proxy to avoid CORS
  */
 async function makeRequest(endpoint, params) {
   if (!API_KEY) {
     throw new Error('Google Maps API key not configured');
   }
 
-  const url = new URL(`https://maps.googleapis.com/maps/api/place/${endpoint}/json`);
-  url.searchParams.append('key', API_KEY);
+  // Use the Vercel serverless function proxy instead of direct API call
+  const proxyUrl = new URL('/api/google-places', window.location.origin);
+  proxyUrl.searchParams.append('endpoint', endpoint);
   
   Object.entries(params).forEach(([key, value]) => {
     if (value !== null && value !== undefined) {
-      url.searchParams.append(key, value);
+      proxyUrl.searchParams.append(key, value);
     }
   });
 
-  const response = await fetch(url);
+  console.log('🗺️ [GOOGLE PLACES] Making proxied request to:', proxyUrl.toString());
+
+  const response = await fetch(proxyUrl.toString());
   if (!response.ok) {
-    throw new Error(`Google Places API error: ${response.statusText}`);
+    throw new Error(`Google Places API proxy error: ${response.statusText}`);
   }
 
   const data = await response.json();
