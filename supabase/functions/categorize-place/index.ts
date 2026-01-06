@@ -77,9 +77,7 @@ Example description style: "A popular BBQ spot known for its authentic Texas-sty
             role: 'user',
             content: prompt
           }
-        ],
-        // Request structured output (JSON mode)
-        response_format: { type: 'json_object' }
+        ]
       })
     })
 

@@ -100,9 +100,7 @@ The results array must have exactly ${placesToProcess.length} items, one for eac
             role: 'user',
             content: prompt
           }
-        ],
-        // Request structured output (JSON mode)
-        response_format: { type: 'json_object' }
+        ]
       })
     })
 
