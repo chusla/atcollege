@@ -24,43 +24,39 @@ export function AuthProvider({ children }) {
     }
     
     try {
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
-      )
-      
-      const fetchPromise = async () => {
-        // First try to get existing profile
-        let { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single()
+      // Use maybeSingle() - returns null if not found, doesn't error
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle()
 
-        // If no profile exists, create one
-        if (error && error.code === 'PGRST116') {
-          const newProfile = { ...basicProfile, role: 'user' }
-          
-          const { data: created, error: createError } = await supabase
-            .from('profiles')
-            .insert(newProfile)
-            .select()
-            .single()
-          
-          if (createError) {
-            console.error('Error creating profile:', createError)
-            return newProfile
-          }
-          return created
-        } else if (error) {
-          console.error('Error fetching profile:', error)
-          return basicProfile
-        }
-
-        return data
+      if (error) {
+        console.error('Error fetching profile:', error)
+        setProfile(basicProfile)
+        return basicProfile
       }
 
-      const data = await Promise.race([fetchPromise(), timeoutPromise])
+      // If no profile exists, try to create one
+      if (!data) {
+        const newProfile = { ...basicProfile, role: 'user' }
+        
+        const { data: created, error: createError } = await supabase
+          .from('profiles')
+          .insert(newProfile)
+          .select()
+          .maybeSingle()
+        
+        if (createError) {
+          console.error('Error creating profile:', createError)
+          setProfile(basicProfile)
+          return basicProfile
+        }
+        
+        setProfile(created || basicProfile)
+        return created || basicProfile
+      }
+
       setProfile(data)
       return data
     } catch (error) {
@@ -90,11 +86,11 @@ export function AuthProvider({ children }) {
     if (initializedRef.current) return
     initializedRef.current = true
 
-    // Safety timeout - never show loading for more than 2 seconds
+    // Safety timeout - never show loading for more than 3 seconds
     const safetyTimeout = setTimeout(() => {
       console.warn('Auth initialization timed out, forcing load completion')
       setLoading(false)
-    }, 2000)
+    }, 3000)
 
     const initAuth = async () => {
       try {
