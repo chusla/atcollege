@@ -9,11 +9,12 @@ import EventCard from '../components/cards/EventCard';
 import PlaceCard from '../components/cards/PlaceCard';
 import OpportunityCard from '../components/cards/OpportunityCard';
 import GroupCard from '../components/cards/GroupCard';
+import AuthModal from '../components/auth/AuthModal';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { signInWithGoogle, isAuthenticated, isRegistrationComplete, getCurrentUser, loading: authLoading, profileLoaded } = useAuth();
+  const { signInWithGoogle, signInWithPassword, signUp, isAuthenticated, isRegistrationComplete, getCurrentUser, loading: authLoading, profileLoaded } = useAuth();
   const [events, setEvents] = useState([]);
   const [places, setPlaces] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
@@ -23,6 +24,7 @@ export default function Landing() {
   const [savedPlaceIds, setSavedPlaceIds] = useState(new Set());
   const [savedOppIds, setSavedOppIds] = useState(new Set());
   const [savedGroupIds, setSavedGroupIds] = useState(new Set());
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Redirect authenticated users appropriately
   useEffect(() => {
@@ -70,7 +72,7 @@ export default function Landing() {
   const handleSave = async (itemType, item, savedIds, setSavedIds) => {
     try {
       if (!isAuthenticated()) {
-        signInWithGoogle();
+        setAuthModalOpen(true);
         return;
       }
 
@@ -131,7 +133,7 @@ export default function Landing() {
     }
   };
 
-  const handleJoin = async () => {
+  const handleJoin = () => {
     // If already authenticated, redirect appropriately
     if (isAuthenticated()) {
       if (!isRegistrationComplete()) {
@@ -142,12 +144,8 @@ export default function Landing() {
       return;
     }
     
-    // Otherwise, sign in with Google
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      console.error('Sign in error:', error);
-    }
+    // Open auth modal
+    setAuthModalOpen(true);
   };
 
   const handleExplore = () => {
@@ -166,6 +164,13 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AuthModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        onGoogleSignIn={signInWithGoogle}
+        onEmailSignIn={signInWithPassword}
+        onEmailSignUp={signUp}
+      />
       <HeroSection onJoin={handleJoin} onExplore={handleExplore} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
