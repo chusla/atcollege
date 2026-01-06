@@ -753,6 +753,88 @@ export const User = {
   }
 }
 
+// Search Query - tracks search history for analytics
+export const SearchQuery = {
+  ...createEntity('search_queries'),
+  
+  async create(searchData) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const record = {
+        user_id: user?.id || null,
+        campus_id: searchData.campusId || null,
+        query_text: searchData.query || '',
+        category: searchData.category || 'all',
+        radius_miles: parseFloat(searchData.radius) || 5,
+        latitude: searchData.latitude || null,
+        longitude: searchData.longitude || null,
+        results_count: searchData.resultsCount || 0,
+        place_ids: searchData.placeIds || [],
+        search_source: searchData.source || 'home',
+        is_completed: searchData.isCompleted || false
+      };
+      
+      const { data, error } = await supabase
+        .from('search_queries')
+        .insert(record)
+        .select()
+        .single();
+      
+      if (error) {
+        // Table might not exist yet - log but don't throw
+        console.warn('📊 [SEARCH QUERY] Could not save:', error.message);
+        return null;
+      }
+      
+      console.log('📊 [SEARCH QUERY] Saved:', record.query_text);
+      return data;
+    } catch (error) {
+      console.warn('📊 [SEARCH QUERY] Error saving:', error);
+      return null;
+    }
+  },
+  
+  async markCompleted(id, resultsCount, placeIds) {
+    try {
+      const { data, error } = await supabase
+        .from('search_queries')
+        .update({ 
+          is_completed: true, 
+          results_count: resultsCount,
+          place_ids: placeIds,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.warn('📊 [SEARCH QUERY] Error updating:', error);
+      return null;
+    }
+  },
+  
+  async getRecentByUser(userId, limit = 10) {
+    try {
+      const { data, error } = await supabase
+        .from('search_queries')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.warn('📊 [SEARCH QUERY] Error fetching:', error);
+      return [];
+    }
+  }
+}
+
 export default {
   Campus,
   Event,
@@ -761,6 +843,7 @@ export default {
   InterestGroup,
   SavedItem,
   Comment,
-  User
+  User,
+  SearchQuery
 }
 

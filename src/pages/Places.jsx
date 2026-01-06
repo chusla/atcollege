@@ -280,6 +280,7 @@ export default function Places() {
             items={places} 
             itemType="place" 
             center={campusCenter || { lat: 42.3770, lng: -71.1167 }} // Default to Harvard if no campus
+            radiusMiles={radius}
           />
         )}
 

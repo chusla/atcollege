@@ -22,15 +22,33 @@ const markerColors = {
   group: '#a855f7' // purple
 }
 
+// Calculate appropriate zoom level based on radius in miles
+// Zoom levels: ~12 for 5mi, ~14 for 1mi, ~11 for 10mi, ~10 for 25mi
+const getZoomForRadius = (radiusMiles) => {
+  if (!radiusMiles || radiusMiles === 'all') return 12;
+  const r = parseFloat(radiusMiles);
+  if (r <= 0.5) return 16;
+  if (r <= 1) return 15;
+  if (r <= 2) return 14;
+  if (r <= 3) return 13;
+  if (r <= 5) return 12;
+  if (r <= 10) return 11;
+  if (r <= 25) return 10;
+  return 9;
+}
+
 export default function ListingsMap({ 
   items = [], 
   itemType = 'event',
   center = null,
-  zoom = 13,
+  zoom = null,
+  radiusMiles = null, // NEW: Pass radius to auto-calculate zoom
   onMarkerClick = null,
   showInfoWindow = true,
   height = '400px'
 }) {
+  // Calculate zoom from radius if not explicitly provided
+  const effectiveZoom = zoom ?? (radiusMiles ? getZoomForRadius(radiusMiles) : 13);
   const [selectedItem, setSelectedItem] = useState(null)
   const [map, setMap] = useState(null)
 
@@ -109,7 +127,7 @@ export default function ListingsMap({
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={mapCenter}
-        zoom={zoom}
+        zoom={effectiveZoom}
         onLoad={onLoad}
         options={{
           streetViewControl: false,

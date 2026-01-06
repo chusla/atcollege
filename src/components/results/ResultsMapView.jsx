@@ -2,7 +2,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import ListingsMap from '@/components/maps/ListingsMap';
 
-export default function ResultsMapView({ items, itemType, center = null }) {
+export default function ResultsMapView({ items, itemType, center = null, radiusMiles = null }) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   
   // Show placeholder if no API key or no items with coordinates
@@ -44,6 +44,7 @@ export default function ResultsMapView({ items, itemType, center = null }) {
         items={items} 
         itemType={itemType} 
         center={center}
+        radiusMiles={radiusMiles}
         height="384px"
       />
     </Card>

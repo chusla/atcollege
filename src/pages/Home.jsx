@@ -416,10 +416,10 @@ export default function Home() {
       console.log('🔍 [SEARCH] All phases complete');
       setLoadingMore(false);
       
-      // Cache search results for "View All" page
+      // Cache search results for "View All" page and save to DB
       setSearchResults(prev => {
         if (prev.places?.length > 0 && query) {
-          cacheSearch(query, radius, category, prev);
+          cacheSearch(query, radius, category, prev, user?.selected_campus_id, campusLocation);
         }
         return prev;
       });

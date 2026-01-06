@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { SearchQuery } from '@/api/entities';
 
 const SearchContext = createContext(null);
 
@@ -6,9 +7,11 @@ export function SearchProvider({ children }) {
   // Store search results keyed by query string
   const [searchCache, setSearchCache] = useState({});
 
-  // Save search results
-  const cacheSearch = useCallback((query, radius, category, results) => {
+  // Save search results (to memory cache AND database)
+  const cacheSearch = useCallback(async (query, radius, category, results, campusId = null, location = null) => {
     const cacheKey = `${query.toLowerCase()}_${radius}_${category}`;
+    
+    // Save to memory cache
     setSearchCache(prev => ({
       ...prev,
       [cacheKey]: {
@@ -22,6 +25,24 @@ export function SearchProvider({ children }) {
       }
     }));
     console.log('📦 [SEARCH CACHE] Saved results for:', cacheKey, results.places?.length || 0, 'places');
+    
+    // Also save to database for history/analytics (fire and forget)
+    const placeIds = (results.places || [])
+      .map(p => p.id || p.google_place_id)
+      .filter(Boolean);
+    
+    SearchQuery.create({
+      query,
+      category,
+      radius,
+      campusId,
+      latitude: location?.lat,
+      longitude: location?.lng,
+      resultsCount: placeIds.length,
+      placeIds,
+      source: 'home',
+      isCompleted: true
+    }).catch(() => {}); // Ignore errors - DB table might not exist yet
   }, []);
 
   // Get cached search results
