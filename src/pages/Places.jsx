@@ -55,32 +55,55 @@ export default function Places() {
       
       setCampusCenter(campusLocation);
 
-      // Include both approved and pending statuses in the filter
-      const filters = {
-        status: ['approved', 'pending'] // Array triggers .in() query
-      };
-      if (category && category !== 'all') {
-        filters.category = category.toLowerCase();
-      }
+      // If there's a search query, try to load cached search results first
+      let data = [];
       
-      let data = await Place.filter(filters, { 
-        orderBy: { column: 'rating', ascending: false }, 
-        limit: 200 // Get more to filter by search and radius
-      });
-      
-      // Filter by search query if provided
       if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        data = (data || []).filter(place => 
-          place.name?.toLowerCase().includes(query) ||
-          place.description?.toLowerCase().includes(query) ||
-          place.address?.toLowerCase().includes(query) ||
-          place.category?.toLowerCase().includes(query)
-        );
+        // Try to get cached search results from sessionStorage
+        try {
+          const cachedResults = sessionStorage.getItem(`search_results_${searchQuery.toLowerCase()}`);
+          if (cachedResults) {
+            const cached = JSON.parse(cachedResults);
+            // Check if cache is less than 5 minutes old
+            if (Date.now() - cached.timestamp < 5 * 60 * 1000) {
+              console.log('📦 [PLACES] Using cached search results:', cached.places.length);
+              data = cached.places;
+            }
+          }
+        } catch (e) {
+          console.warn('Error reading cached results:', e);
+        }
+      }
+
+      // If no cached results, fetch from database
+      if (data.length === 0) {
+        // Include both approved and pending statuses in the filter
+        const filters = {
+          status: ['approved', 'pending'] // Array triggers .in() query
+        };
+        if (category && category !== 'all') {
+          filters.category = category.toLowerCase();
+        }
+        
+        data = await Place.filter(filters, { 
+          orderBy: { column: 'rating', ascending: false }, 
+          limit: 200 // Get more to filter by search and radius
+        });
+        
+        // Filter by search query if provided
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          data = (data || []).filter(place => 
+            place.name?.toLowerCase().includes(query) ||
+            place.description?.toLowerCase().includes(query) ||
+            place.address?.toLowerCase().includes(query) ||
+            place.category?.toLowerCase().includes(query)
+          );
+        }
       }
 
       // Always filter by radius to only show nearby places
-      if (radius !== 'all') {
+      if (radius !== 'all' && data.length > 0) {
         data = filterByRadius(
           data || [],
           campusLocation.lat,

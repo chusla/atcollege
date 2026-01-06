@@ -414,6 +414,22 @@ export default function Home() {
       console.log('🔍 [SEARCH] All phases complete');
       setLoadingMore(false);
       
+      // Cache search results for "View All" page
+      setSearchResults(prev => {
+        if (prev.places?.length > 0 && query) {
+          try {
+            sessionStorage.setItem(`search_results_${query.toLowerCase()}`, JSON.stringify({
+              places: prev.places,
+              timestamp: Date.now()
+            }));
+            console.log('📦 [SEARCH] Cached', prev.places.length, 'results for:', query);
+          } catch (e) {
+            console.warn('Could not cache search results:', e);
+          }
+        }
+        return prev;
+      });
+      
     } catch (error) {
       console.error('🔍 [SEARCH] Error:', error);
       setSearchLoading(false);

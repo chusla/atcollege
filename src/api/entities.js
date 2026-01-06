@@ -301,15 +301,20 @@ export const Place = {
     try {
       // First check if place already exists to avoid 409 conflict errors
       if (googlePlaceData.google_place_id) {
-        const { data: existingPlace } = await supabase
+        const { data: existingPlace, error: checkError } = await supabase
           .from('places')
-          .select()
+          .select('*')
           .eq('google_place_id', googlePlaceData.google_place_id)
-          .single();
+          .maybeSingle(); // Use maybeSingle to avoid 406 error on no results
         
         if (existingPlace) {
           console.log('📝 [PLACE] Place already exists, returning existing:', googlePlaceData.name);
           return existingPlace;
+        }
+        
+        // If there was an error checking (like 406), log it but continue
+        if (checkError) {
+          console.warn('📝 [PLACE] Warning checking existing place:', checkError.message);
         }
       }
 
@@ -358,7 +363,7 @@ export const Place = {
       const { data, error } = await supabase
         .from('places')
         .insert(placeData)
-        .select()
+        .select('*')
         .single()
       
       if (error) {
@@ -367,19 +372,47 @@ export const Place = {
           console.log('📝 [PLACE] Race condition: place was just created, fetching:', googlePlaceData.name);
           const { data: existingPlace, error: fetchError } = await supabase
             .from('places')
-            .select()
+            .select('*')
             .eq('google_place_id', googlePlaceData.google_place_id)
-            .single();
+            .maybeSingle();
           
           if (fetchError) throw fetchError;
           return existingPlace;
         }
+        
+        // Handle 403 (RLS policy blocking insert) gracefully - return a virtual place object
+        if (error.code === '42501' || error.message?.includes('403') || error.message?.includes('permission')) {
+          console.warn('📝 [PLACE] Permission denied, returning virtual place for display:', googlePlaceData.name);
+          // Return a virtual place object that can be displayed but isn't persisted
+          return {
+            id: `virtual_${googlePlaceData.google_place_id}`,
+            ...placeData,
+            is_virtual: true // Flag to indicate this isn't in the DB
+          };
+        }
+        
         throw error;
       }
       return data
     } catch (error) {
-      console.error('Error creating place from Google data:', error)
-      throw error
+      // For any other error, return a virtual place so results still show
+      console.error('Error creating place from Google data:', error);
+      if (googlePlaceData.google_place_id) {
+        return {
+          id: `virtual_${googlePlaceData.google_place_id}`,
+          name: googlePlaceData.name,
+          address: googlePlaceData.address,
+          description: googlePlaceData.editorials_summary || googlePlaceData.editorial_summary?.overview || null,
+          latitude: googlePlaceData.latitude,
+          longitude: googlePlaceData.longitude,
+          rating: googlePlaceData.rating || null,
+          image_url: googlePlaceData.photo_url || null,
+          google_place_id: googlePlaceData.google_place_id,
+          status: 'pending',
+          is_virtual: true
+        };
+      }
+      throw error;
     }
   },
   async updateImageFromGoogle(placeId, googlePlaceId) {
