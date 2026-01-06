@@ -185,18 +185,25 @@ export function AuthProvider({ children }) {
     return profile?.registration_complete === true
   }
 
-  // Update profile
+  // Update profile (uses upsert to handle case where profile doesn't exist)
   const updateProfile = async (updates) => {
     if (!user) throw new Error('Not authenticated')
 
+    // Use upsert to create profile if it doesn't exist
     const { data, error } = await supabase
       .from('profiles')
-      .update(updates)
-      .eq('id', user.id)
+      .upsert({
+        id: user.id,
+        email: user.email,
+        ...updates
+      }, { onConflict: 'id' })
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Error updating profile:', error)
+      throw error
+    }
     setProfile(data)
     return data
   }
