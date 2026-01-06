@@ -48,7 +48,8 @@ function TeardropMarker({ item, itemType, isHovered, isSelected, onClick, onHove
       onMouseLeave={onLeave}
       style={{ 
         transform: 'translate(-50%, -100%)',
-        filter: isHovered || isSelected ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+        filter: isHovered || isSelected ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+        zIndex: isHovered || isSelected ? 1000 : 1
       }}
     >
       {/* SVG Teardrop shape */}
@@ -100,8 +101,8 @@ function TeardropMarker({ item, itemType, isHovered, isSelected, onClick, onHove
       {/* Hover card - Yelp style */}
       {isHovered && (
         <div 
-          className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 animate-fade-in"
-          style={{ minWidth: '180px', maxWidth: '220px' }}
+          className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 animate-fade-in"
+          style={{ minWidth: '180px', maxWidth: '220px', zIndex: 9999 }}
         >
           <div className="bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden">
             {/* Image preview */}
