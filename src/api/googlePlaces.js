@@ -65,14 +65,17 @@ async function makeRequest(endpoint, params) {
  * @returns {Promise<Array>} Array of place results
  */
 export async function searchPlaces(query, location, radius = 5000) {
+  console.log('🗺️ [GOOGLE PLACES] searchPlaces called:', { query, location, radius });
+  
   if (!API_KEY) {
-    console.warn('Google Maps API key not configured');
+    console.warn('🗺️ [GOOGLE PLACES] API key not configured');
     return [];
   }
 
   const cacheKey = getCacheKey('textsearch', { query, location, radius });
   const cached = cache.get(cacheKey);
   if (cached && isCacheValid(cached)) {
+    console.log('🗺️ [GOOGLE PLACES] Using cached results:', cached.data.length);
     return cached.data;
   }
 
@@ -86,13 +89,17 @@ export async function searchPlaces(query, location, radius = 5000) {
       params.location = `${location.lat},${location.lng}`;
     }
 
+    console.log('🗺️ [GOOGLE PLACES] Making API request with params:', params);
     const data = await makeRequest('textsearch', params);
+    console.log('🗺️ [GOOGLE PLACES] API response status:', data.status, 'results:', data.results?.length || 0);
+    
     const results = (data.results || []).map(formatPlaceResult);
+    console.log('🗺️ [GOOGLE PLACES] Formatted results:', results.length, results.map(r => r.name));
 
     cache.set(cacheKey, { data: results, timestamp: Date.now() });
     return results;
   } catch (error) {
-    console.error('Error searching places:', error);
+    console.error('🗺️ [GOOGLE PLACES] Error searching places:', error);
     return [];
   }
 }
@@ -105,19 +112,22 @@ export async function searchPlaces(query, location, radius = 5000) {
  * @returns {Promise<Array>} Array of place results
  */
 export async function searchNearby(location, radius = 5000, type = null) {
+  console.log('🗺️ [GOOGLE PLACES] searchNearby called:', { location, radius, type });
+  
   if (!API_KEY) {
-    console.warn('Google Maps API key not configured');
+    console.warn('🗺️ [GOOGLE PLACES] API key not configured');
     return [];
   }
 
   if (!location?.lat || !location?.lng) {
-    console.warn('Location required for nearby search');
+    console.warn('🗺️ [GOOGLE PLACES] Invalid location provided');
     return [];
   }
 
   const cacheKey = getCacheKey('nearbysearch', { location, radius, type });
   const cached = cache.get(cacheKey);
   if (cached && isCacheValid(cached)) {
+    console.log('🗺️ [GOOGLE PLACES] Using cached nearby results:', cached.data.length);
     return cached.data;
   }
 
@@ -131,13 +141,17 @@ export async function searchNearby(location, radius = 5000, type = null) {
       params.type = type;
     }
 
+    console.log('🗺️ [GOOGLE PLACES] Making nearby API request:', params);
     const data = await makeRequest('nearbysearch', params);
+    console.log('🗺️ [GOOGLE PLACES] Nearby API response:', data.status, 'results:', data.results?.length || 0);
+    
     const results = (data.results || []).map(formatPlaceResult);
+    console.log('🗺️ [GOOGLE PLACES] Formatted nearby results:', results.length);
 
     cache.set(cacheKey, { data: results, timestamp: Date.now() });
     return results;
   } catch (error) {
-    console.error('Error searching nearby places:', error);
+    console.error('🗺️ [GOOGLE PLACES] Error searching nearby places:', error);
     return [];
   }
 }

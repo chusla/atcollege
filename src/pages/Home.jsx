@@ -82,9 +82,11 @@ export default function Home() {
   };
 
   const handleSearch = async (query, radius, category = 'all') => {
+    console.log('🔍 [SEARCH] Starting search:', { query, radius, category });
     setSearchQuery(query);
     
     if (!query.trim() && category === 'all') {
+      console.log('🔍 [SEARCH] Empty query and category, clearing results');
       setSearchResults({
         events: [], places: [], opportunities: [], groups: [],
         eventsCount: 0, placesCount: 0, opportunitiesCount: 0, groupsCount: 0
@@ -95,23 +97,37 @@ export default function Home() {
     setSearchLoading(true);
     try {
       // Get user's campus location
+      console.log('🔍 [SEARCH] User info:', { 
+        userId: user?.id, 
+        selectedCampusId: user?.selected_campus_id 
+      });
+      
       let campusLocation = null;
       if (user?.selected_campus_id) {
         try {
+          console.log('🔍 [SEARCH] Fetching campus:', user.selected_campus_id);
           const campus = await Campus.get(user.selected_campus_id);
+          console.log('🔍 [SEARCH] Campus data:', campus);
+          
           if (campus?.latitude && campus?.longitude) {
             campusLocation = {
               lat: parseFloat(campus.latitude),
               lng: parseFloat(campus.longitude)
             };
+            console.log('🔍 [SEARCH] Campus location:', campusLocation);
+          } else {
+            console.warn('🔍 [SEARCH] Campus missing coordinates:', campus);
           }
         } catch (error) {
-          console.error('Error fetching campus:', error);
+          console.error('🔍 [SEARCH] Error fetching campus:', error);
         }
+      } else {
+        console.warn('🔍 [SEARCH] No selected_campus_id for user');
       }
 
       // Convert radius to meters for Google Places API
       const radiusMeters = radius === 'all' ? 50000 : milesToMeters(parseFloat(radius));
+      console.log('🔍 [SEARCH] Radius in meters:', radiusMeters);
 
       // Search Google Places if we have a campus location and (query or category)
       let googlePlacesResults = [];
@@ -120,21 +136,28 @@ export default function Home() {
           if (category !== 'all' && !query.trim()) {
             // Category-only search using nearby search
             const googleType = categoryToGoogleType(category);
+            console.log('🔍 [SEARCH] Category-only search:', { category, googleType });
             googlePlacesResults = await searchNearby(campusLocation, radiusMeters, googleType);
+            console.log('🔍 [SEARCH] Google Nearby results:', googlePlacesResults.length, googlePlacesResults);
           } else if (query.trim()) {
             // Text search with optional category filter
             const searchQuery = category !== 'all' 
               ? `${query} ${category}` 
               : query;
+            console.log('🔍 [SEARCH] Text search:', { searchQuery, location: campusLocation, radiusMeters });
             googlePlacesResults = await searchPlaces(searchQuery, campusLocation, radiusMeters);
+            console.log('🔍 [SEARCH] Google Places results:', googlePlacesResults.length, googlePlacesResults);
           }
         } catch (error) {
-          console.error('Error searching Google Places:', error);
+          console.error('🔍 [SEARCH] Error searching Google Places:', error);
           // Continue with database search even if Google fails
         }
+      } else {
+        console.warn('🔍 [SEARCH] No campus location, skipping Google Places search');
       }
 
       // Process Google Places results: check for existing, insert new ones
+      console.log('🔍 [SEARCH] Processing', googlePlacesResults.length, 'Google Places results');
       const processedGooglePlaces = [];
       const newPlaceIds = [];
       for (const googlePlace of googlePlacesResults) {
@@ -143,20 +166,26 @@ export default function Home() {
           const existing = await Place.findByGooglePlaceId(googlePlace.google_place_id);
           
           if (existing) {
+            console.log('🔍 [SEARCH] Place exists:', existing.name, 'status:', existing.status);
             // Use existing place if approved or pending
             if (existing.status === 'approved' || existing.status === 'pending') {
               processedGooglePlaces.push(existing);
+            } else {
+              console.log('🔍 [SEARCH] Skipping existing place with status:', existing.status);
             }
           } else {
             // Create new place from Google data
+            console.log('🔍 [SEARCH] Creating new place:', googlePlace.name);
             const newPlace = await Place.createFromGooglePlace(googlePlace, user?.selected_campus_id);
+            console.log('🔍 [SEARCH] Created place:', newPlace.id, newPlace.name, 'status:', newPlace.status);
             processedGooglePlaces.push(newPlace);
             newPlaceIds.push(newPlace.id);
           }
         } catch (error) {
-          console.error('Error processing Google Place:', error);
+          console.error('🔍 [SEARCH] Error processing Google Place:', googlePlace.name, error);
         }
       }
+      console.log('🔍 [SEARCH] Processed places:', processedGooglePlaces.length, 'New place IDs:', newPlaceIds.length);
 
       // Queue new places for categorization (async, non-blocking)
       if (newPlaceIds.length > 0) {
@@ -178,12 +207,19 @@ export default function Home() {
 
       // Search database for existing places, events, opportunities, groups
       // Include pending places so newly imported Google Places show up
+      console.log('🔍 [SEARCH] Fetching database records...');
       const [allEvents, allPlaces, allOpps, allGroups] = await Promise.all([
         Event.filter({ status: 'approved' }),
         Place.filter({ status: ['approved', 'pending'] }),
         Opportunity.filter({ status: 'approved' }),
         InterestGroup.filter({ status: 'approved' })
       ]);
+      console.log('🔍 [SEARCH] Database results:', {
+        events: allEvents?.length || 0,
+        places: allPlaces?.length || 0,
+        opportunities: allOpps?.length || 0,
+        groups: allGroups?.length || 0
+      });
 
       const searchLower = query.toLowerCase();
       
@@ -199,20 +235,28 @@ export default function Home() {
         p.description?.toLowerCase().includes(searchLower) ||
         p.category?.toLowerCase().includes(searchLower)
       );
+      console.log('🔍 [SEARCH] Filtered places from DB:', filteredPlaces.length);
 
       // Merge Google Places results with database results
       // Deduplicate by ID
+      console.log('🔍 [SEARCH] Merging results:', {
+        googlePlaces: filteredGooglePlaces.length,
+        dbPlaces: filteredPlaces.length
+      });
       const googlePlaceIds = new Set(filteredGooglePlaces.map(p => p.id));
       const dbPlacesWithoutGoogle = filteredPlaces.filter(p => !googlePlaceIds.has(p.id));
       const mergedPlaces = [...filteredGooglePlaces, ...dbPlacesWithoutGoogle];
+      console.log('🔍 [SEARCH] Merged places:', mergedPlaces.length);
 
       // Filter by category if specified
       let finalPlaces = mergedPlaces;
       if (category !== 'all') {
+        console.log('🔍 [SEARCH] Filtering by category:', category);
         finalPlaces = mergedPlaces.filter(p => 
           p.category?.toLowerCase() === category.toLowerCase() ||
           p.llm_category?.toLowerCase() === category.toLowerCase()
         );
+        console.log('🔍 [SEARCH] Places after category filter:', finalPlaces.length);
       }
 
       // Filter by radius for database places
@@ -245,7 +289,7 @@ export default function Home() {
         g.category?.toLowerCase().includes(searchLower)
       );
 
-      setSearchResults({
+      const results = {
         events: filteredEvents.slice(0, 5),
         places: finalPlaces.slice(0, 5),
         opportunities: filteredOpps.slice(0, 5),
@@ -254,9 +298,19 @@ export default function Home() {
         placesCount: finalPlaces.length,
         opportunitiesCount: filteredOpps.length,
         groupsCount: filteredGroups.length
+      };
+      
+      console.log('🔍 [SEARCH] Final results:', {
+        events: results.eventsCount,
+        places: results.placesCount,
+        opportunities: results.opportunitiesCount,
+        groups: results.groupsCount,
+        placesPreview: results.places.map(p => ({ name: p.name, status: p.status, source: p.source }))
       });
+      
+      setSearchResults(results);
     } catch (error) {
-      console.error('Error searching:', error);
+      console.error('🔍 [SEARCH] Error searching:', error);
     } finally {
       setSearchLoading(false);
     }
