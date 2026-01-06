@@ -378,8 +378,8 @@ export default function Home() {
         googlePlaces: filteredGooglePlaces.length,
         dbPlaces: filteredDbPlaces.length
       });
-      const googlePlaceIds = new Set(filteredGooglePlaces.map(p => p.id));
-      const dbPlacesWithoutGoogle = filteredDbPlaces.filter(p => !googlePlaceIds.has(p.id));
+      const mergedGooglePlaceIds = new Set(filteredGooglePlaces.map(p => p.id));
+      const dbPlacesWithoutGoogle = filteredDbPlaces.filter(p => !mergedGooglePlaceIds.has(p.id));
       let mergedPlaces = [...filteredGooglePlaces, ...dbPlacesWithoutGoogle];
       
       // Sort by distance if available
