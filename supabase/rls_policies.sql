@@ -1,188 +1,559 @@
--- Row Level Security Policies for atCollege
--- Run this after schema.sql in Supabase SQL Editor
+-- IdealToolkit Assessment Platform - Row Level Security Policies
+-- Run this AFTER schema.sql in your Supabase SQL Editor
 
--- Enable RLS on all tables
+-- =====================================================
+-- ENABLE RLS ON ALL TABLES
+-- =====================================================
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.campuses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.places ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.opportunities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.interest_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.saved_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.client_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coach_companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.models ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.model_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pillars ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competencies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.indicators ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assessment_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assessment_sections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.question_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assessment_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.question_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.scoring_scales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.scoring_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.benchmark_scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscription_plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.entitlements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sponsorships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.discounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.files ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================
+-- HELPER FUNCTIONS
+-- =====================================================
+
+-- Check if user is an admin
+CREATE OR REPLACE FUNCTION is_admin(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = user_id AND primary_role = 'app_admin'
+    );
+END;
+$$ language 'plpgsql' SECURITY DEFINER;
+
+-- Check if user is a coach
+CREATE OR REPLACE FUNCTION is_coach(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = user_id AND primary_role = 'coach'
+    );
+END;
+$$ language 'plpgsql' SECURITY DEFINER;
+
+-- Check if user is an employer
+CREATE OR REPLACE FUNCTION is_employer(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = user_id AND primary_role = 'employer'
+    );
+END;
+$$ language 'plpgsql' SECURITY DEFINER;
+
+-- Check if user belongs to same organization
+CREATE OR REPLACE FUNCTION same_organization(user_id UUID, target_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles p1
+        JOIN public.profiles p2 ON p1.organization_id = p2.organization_id
+        WHERE p1.id = user_id AND p2.id = target_user_id
+        AND p1.organization_id IS NOT NULL
+    );
+END;
+$$ language 'plpgsql' SECURITY DEFINER;
 
 -- =====================================================
 -- PROFILES POLICIES
 -- =====================================================
--- Users can view all profiles
-CREATE POLICY "Profiles are viewable by everyone" ON public.profiles
-    FOR SELECT USING (true);
+
+-- Users can view their own profile
+CREATE POLICY "Users can view own profile"
+    ON public.profiles FOR SELECT
+    USING (auth.uid() = id);
+
+-- Admins can view all profiles
+CREATE POLICY "Admins can view all profiles"
+    ON public.profiles FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Coaches can view profiles in their organization
+CREATE POLICY "Coaches can view org profiles"
+    ON public.profiles FOR SELECT
+    USING (
+        is_coach(auth.uid()) AND 
+        same_organization(auth.uid(), id)
+    );
+
+-- Employers can view profiles in their organization
+CREATE POLICY "Employers can view org profiles"
+    ON public.profiles FOR SELECT
+    USING (
+        is_employer(auth.uid()) AND 
+        same_organization(auth.uid(), id)
+    );
 
 -- Users can update their own profile
-CREATE POLICY "Users can update own profile" ON public.profiles
-    FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile"
+    ON public.profiles FOR UPDATE
+    USING (auth.uid() = id);
+
+-- Admins can update any profile
+CREATE POLICY "Admins can update any profile"
+    ON public.profiles FOR UPDATE
+    USING (is_admin(auth.uid()));
 
 -- =====================================================
--- CAMPUSES POLICIES
+-- ORGANIZATIONS POLICIES
 -- =====================================================
--- Anyone can view campuses
-CREATE POLICY "Campuses are viewable by everyone" ON public.campuses
-    FOR SELECT USING (true);
 
--- Only admins can modify campuses
-CREATE POLICY "Admins can insert campuses" ON public.campuses
-    FOR INSERT WITH CHECK (
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
+-- Anyone authenticated can view organizations
+CREATE POLICY "Authenticated users can view organizations"
+    ON public.organizations FOR SELECT
+    TO authenticated
+    USING (true);
 
-CREATE POLICY "Admins can update campuses" ON public.campuses
-    FOR UPDATE USING (
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
+-- Admins can manage organizations
+CREATE POLICY "Admins can insert organizations"
+    ON public.organizations FOR INSERT
+    WITH CHECK (is_admin(auth.uid()));
 
-CREATE POLICY "Admins can delete campuses" ON public.campuses
-    FOR DELETE USING (
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
+CREATE POLICY "Admins can update organizations"
+    ON public.organizations FOR UPDATE
+    USING (is_admin(auth.uid()));
 
--- =====================================================
--- EVENTS POLICIES
--- =====================================================
--- Anyone can view approved events
-CREATE POLICY "Approved events are viewable by everyone" ON public.events
-    FOR SELECT USING (status = 'approved' OR organizer_id = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
-
--- Authenticated users can create events
-CREATE POLICY "Authenticated users can create events" ON public.events
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-
--- Users can update their own events or admins can update any
-CREATE POLICY "Users can update own events" ON public.events
-    FOR UPDATE USING (
-        organizer_id = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
-
--- Users can delete their own events or admins can delete any
-CREATE POLICY "Users can delete own events" ON public.events
-    FOR DELETE USING (
-        organizer_id = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
+CREATE POLICY "Admins can delete organizations"
+    ON public.organizations FOR DELETE
+    USING (is_admin(auth.uid()));
 
 -- =====================================================
--- PLACES POLICIES
+-- ADMIN ACCOUNTS POLICIES
 -- =====================================================
--- Anyone can view approved places
-CREATE POLICY "Approved places are viewable by everyone" ON public.places
-    FOR SELECT USING (status = 'approved' OR submitted_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
--- Authenticated users can create places
-CREATE POLICY "Authenticated users can create places" ON public.places
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+-- Users can view their own admin account
+CREATE POLICY "Users can view own admin account"
+    ON public.admin_accounts FOR SELECT
+    USING (auth.uid() = user_id);
 
--- Users can update their own places or admins can update any
-CREATE POLICY "Users can update own places" ON public.places
-    FOR UPDATE USING (
-        submitted_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
+-- Admins can view all admin accounts
+CREATE POLICY "Admins can view all admin accounts"
+    ON public.admin_accounts FOR SELECT
+    USING (is_admin(auth.uid()));
 
--- Users can delete their own places or admins can delete any
-CREATE POLICY "Users can delete own places" ON public.places
-    FOR DELETE USING (
-        submitted_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+-- Only super admins can manage admin accounts
+CREATE POLICY "Super admins can manage admin accounts"
+    ON public.admin_accounts FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.admin_accounts
+            WHERE user_id = auth.uid() AND is_super_admin = true
+        )
     );
 
 -- =====================================================
--- OPPORTUNITIES POLICIES
+-- MODELS & ASSESSMENT CONTENT POLICIES
 -- =====================================================
--- Anyone can view approved opportunities
-CREATE POLICY "Approved opportunities are viewable by everyone" ON public.opportunities
-    FOR SELECT USING (status = 'approved' OR submitted_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
--- Authenticated users can create opportunities
-CREATE POLICY "Authenticated users can create opportunities" ON public.opportunities
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+-- Published models are viewable by all authenticated users
+CREATE POLICY "Published models viewable by all"
+    ON public.models FOR SELECT
+    TO authenticated
+    USING (model_status = 'published' OR is_admin(auth.uid()));
 
--- Users can update their own opportunities or admins can update any
-CREATE POLICY "Users can update own opportunities" ON public.opportunities
-    FOR UPDATE USING (
-        submitted_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+-- Admins can manage all models
+CREATE POLICY "Admins can manage models"
+    ON public.models FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Pillars follow model visibility
+CREATE POLICY "Pillars viewable with model"
+    ON public.pillars FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.models
+            WHERE id = pillars.model_id
+            AND (model_status = 'published' OR is_admin(auth.uid()))
+        )
     );
 
--- Users can delete their own opportunities or admins can delete any
-CREATE POLICY "Users can delete own opportunities" ON public.opportunities
-    FOR DELETE USING (
-        submitted_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+CREATE POLICY "Admins can manage pillars"
+    ON public.pillars FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Competencies follow model visibility
+CREATE POLICY "Competencies viewable with model"
+    ON public.competencies FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.models
+            WHERE id = competencies.model_id
+            AND (model_status = 'published' OR is_admin(auth.uid()))
+        )
+    );
+
+CREATE POLICY "Admins can manage competencies"
+    ON public.competencies FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Indicators follow model visibility
+CREATE POLICY "Indicators viewable with model"
+    ON public.indicators FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.models
+            WHERE id = indicators.model_id
+            AND (model_status = 'published' OR is_admin(auth.uid()))
+        )
+    );
+
+CREATE POLICY "Admins can manage indicators"
+    ON public.indicators FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- =====================================================
+-- ASSESSMENTS POLICIES
+-- =====================================================
+
+-- Published assessments viewable by all authenticated users
+CREATE POLICY "Published assessments viewable by all"
+    ON public.assessments FOR SELECT
+    TO authenticated
+    USING (assessment_status = 'published' OR is_admin(auth.uid()));
+
+-- Admins can manage all assessments
+CREATE POLICY "Admins can manage assessments"
+    ON public.assessments FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Assessment pages follow assessment visibility
+CREATE POLICY "Assessment pages viewable with assessment"
+    ON public.assessment_pages FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.assessments
+            WHERE id = assessment_pages.assessment_id
+            AND (assessment_status = 'published' OR is_admin(auth.uid()))
+        )
+    );
+
+CREATE POLICY "Admins can manage assessment pages"
+    ON public.assessment_pages FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Assessment sections follow assessment visibility
+CREATE POLICY "Assessment sections viewable with assessment"
+    ON public.assessment_sections FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.assessments
+            WHERE id = assessment_sections.assessment_id
+            AND (assessment_status = 'published' OR is_admin(auth.uid()))
+        )
+    );
+
+CREATE POLICY "Admins can manage assessment sections"
+    ON public.assessment_sections FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Questions follow assessment visibility
+CREATE POLICY "Questions viewable with assessment"
+    ON public.questions FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.assessments
+            WHERE id = questions.assessment_id
+            AND (assessment_status = 'published' OR is_admin(auth.uid()))
+        )
+    );
+
+CREATE POLICY "Admins can manage questions"
+    ON public.questions FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Question options follow question visibility
+CREATE POLICY "Question options viewable with question"
+    ON public.question_options FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.questions q
+            JOIN public.assessments a ON q.assessment_id = a.id
+            WHERE q.id = question_options.question_id
+            AND (a.assessment_status = 'published' OR is_admin(auth.uid()))
+        )
+    );
+
+CREATE POLICY "Admins can manage question options"
+    ON public.question_options FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- =====================================================
+-- ASSESSMENT RECORDS & RESPONSES POLICIES
+-- =====================================================
+
+-- Users can view their own assessment records
+CREATE POLICY "Users can view own assessment records"
+    ON public.assessment_records FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- Users can view records where they are the target (360)
+CREATE POLICY "Users can view records targeting them"
+    ON public.assessment_records FOR SELECT
+    USING (auth.uid() = target_user_id);
+
+-- Admins can view all assessment records
+CREATE POLICY "Admins can view all assessment records"
+    ON public.assessment_records FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Coaches can view their clients' assessment records
+CREATE POLICY "Coaches can view client records"
+    ON public.assessment_records FOR SELECT
+    USING (
+        is_coach(auth.uid()) AND
+        EXISTS (
+            SELECT 1 FROM public.client_accounts
+            WHERE user_id = assessment_records.user_id
+            AND assigned_coach_id = auth.uid()
+        )
+    );
+
+-- Users can create their own assessment records
+CREATE POLICY "Users can create own assessment records"
+    ON public.assessment_records FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own in-progress records
+CREATE POLICY "Users can update own assessment records"
+    ON public.assessment_records FOR UPDATE
+    USING (auth.uid() = user_id AND record_status IN ('not_started', 'in_progress'));
+
+-- Question responses follow assessment record access
+CREATE POLICY "Users can view own question responses"
+    ON public.question_responses FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.assessment_records
+            WHERE id = question_responses.assessment_record_id
+            AND user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Admins can view all question responses"
+    ON public.question_responses FOR SELECT
+    USING (is_admin(auth.uid()));
+
+CREATE POLICY "Users can create own question responses"
+    ON public.question_responses FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.assessment_records
+            WHERE id = question_responses.assessment_record_id
+            AND user_id = auth.uid()
+            AND record_status = 'in_progress'
+        )
+    );
+
+CREATE POLICY "Users can update own question responses"
+    ON public.question_responses FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.assessment_records
+            WHERE id = question_responses.assessment_record_id
+            AND user_id = auth.uid()
+            AND record_status = 'in_progress'
+        )
     );
 
 -- =====================================================
--- INTEREST GROUPS POLICIES
+-- SCORING POLICIES
 -- =====================================================
--- Anyone can view approved groups
-CREATE POLICY "Approved groups are viewable by everyone" ON public.interest_groups
-    FOR SELECT USING (status = 'approved' OR created_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
--- Authenticated users can create groups
-CREATE POLICY "Authenticated users can create groups" ON public.interest_groups
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+-- Scoring scales are viewable by all authenticated users
+CREATE POLICY "Scoring scales viewable by all"
+    ON public.scoring_scales FOR SELECT
+    TO authenticated
+    USING (true);
 
--- Users can update their own groups or admins can update any
-CREATE POLICY "Users can update own groups" ON public.interest_groups
-    FOR UPDATE USING (
-        created_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+CREATE POLICY "Admins can manage scoring scales"
+    ON public.scoring_scales FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Scoring records follow assessment record access
+CREATE POLICY "Users can view own scoring records"
+    ON public.scoring_records FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.assessment_records
+            WHERE id = scoring_records.assessment_record_id
+            AND user_id = auth.uid()
+        )
     );
 
--- Users can delete their own groups or admins can delete any
-CREATE POLICY "Users can delete own groups" ON public.interest_groups
-    FOR DELETE USING (
-        created_by = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+CREATE POLICY "Admins can view all scoring records"
+    ON public.scoring_records FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Benchmark scores are viewable by all authenticated users
+CREATE POLICY "Benchmark scores viewable by all"
+    ON public.benchmark_scores FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Admins can manage benchmark scores"
+    ON public.benchmark_scores FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- =====================================================
+-- SUBSCRIPTION POLICIES
+-- =====================================================
+
+-- Subscription plans are viewable by all authenticated users
+CREATE POLICY "Subscription plans viewable by all"
+    ON public.subscription_plans FOR SELECT
+    TO authenticated
+    USING (is_active = true OR is_admin(auth.uid()));
+
+CREATE POLICY "Admins can manage subscription plans"
+    ON public.subscription_plans FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- Users can view their own subscriptions
+CREATE POLICY "Users can view own subscriptions"
+    ON public.subscriptions FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can view all subscriptions"
+    ON public.subscriptions FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Users can view their own entitlements
+CREATE POLICY "Users can view own entitlements"
+    ON public.entitlements FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can manage entitlements"
+    ON public.entitlements FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- =====================================================
+-- INVITATIONS POLICIES
+-- =====================================================
+
+-- Users can view invitations they sent or received
+CREATE POLICY "Users can view related invitations"
+    ON public.invitations FOR SELECT
+    USING (
+        auth.uid() = invited_by_id OR
+        email = (SELECT email FROM public.profiles WHERE id = auth.uid())
+    );
+
+CREATE POLICY "Users can create invitations"
+    ON public.invitations FOR INSERT
+    WITH CHECK (auth.uid() = invited_by_id);
+
+CREATE POLICY "Admins can manage all invitations"
+    ON public.invitations FOR ALL
+    USING (is_admin(auth.uid()));
+
+-- =====================================================
+-- MESSAGING POLICIES
+-- =====================================================
+
+-- Users can view conversations they're part of
+CREATE POLICY "Users can view own conversations"
+    ON public.conversations FOR SELECT
+    USING (auth.uid() = ANY(participant_ids));
+
+-- Users can create conversations
+CREATE POLICY "Users can create conversations"
+    ON public.conversations FOR INSERT
+    WITH CHECK (auth.uid() = ANY(participant_ids));
+
+-- Users can view messages in their conversations
+CREATE POLICY "Users can view conversation messages"
+    ON public.messages FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.conversations
+            WHERE id = messages.conversation_id
+            AND auth.uid() = ANY(participant_ids)
+        )
+    );
+
+-- Users can send messages to their conversations
+CREATE POLICY "Users can send messages"
+    ON public.messages FOR INSERT
+    WITH CHECK (
+        auth.uid() = sender_id AND
+        EXISTS (
+            SELECT 1 FROM public.conversations
+            WHERE id = messages.conversation_id
+            AND auth.uid() = ANY(participant_ids)
+        )
     );
 
 -- =====================================================
--- SAVED ITEMS POLICIES
+-- APP CONFIG POLICIES
 -- =====================================================
--- Users can view their own saved items
-CREATE POLICY "Users can view own saved items" ON public.saved_items
-    FOR SELECT USING (user_id = auth.uid());
 
--- Users can create their own saved items
-CREATE POLICY "Users can create own saved items" ON public.saved_items
-    FOR INSERT WITH CHECK (user_id = auth.uid());
+-- App config is readable by all authenticated users
+CREATE POLICY "App config readable by all"
+    ON public.app_config FOR SELECT
+    TO authenticated
+    USING (true);
 
--- Users can delete their own saved items
-CREATE POLICY "Users can delete own saved items" ON public.saved_items
-    FOR DELETE USING (user_id = auth.uid());
+CREATE POLICY "Admins can manage app config"
+    ON public.app_config FOR ALL
+    USING (is_admin(auth.uid()));
 
 -- =====================================================
--- COMMENTS POLICIES
+-- FILES POLICIES
 -- =====================================================
--- Anyone can view comments
-CREATE POLICY "Comments are viewable by everyone" ON public.comments
-    FOR SELECT USING (true);
 
--- Authenticated users can create comments
-CREATE POLICY "Authenticated users can create comments" ON public.comments
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL AND user_id = auth.uid());
+-- Users can view public files or their own files
+CREATE POLICY "Users can view files"
+    ON public.files FOR SELECT
+    USING (is_public = true OR auth.uid() = uploaded_by);
 
--- Users can update their own comments
-CREATE POLICY "Users can update own comments" ON public.comments
-    FOR UPDATE USING (user_id = auth.uid());
+CREATE POLICY "Users can upload files"
+    ON public.files FOR INSERT
+    WITH CHECK (auth.uid() = uploaded_by);
 
--- Users can delete their own comments or admins can delete any
-CREATE POLICY "Users can delete own comments" ON public.comments
-    FOR DELETE USING (
-        user_id = auth.uid() OR 
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
+CREATE POLICY "Users can delete own files"
+    ON public.files FOR DELETE
+    USING (auth.uid() = uploaded_by);
 
+CREATE POLICY "Admins can manage all files"
+    ON public.files FOR ALL
+    USING (is_admin(auth.uid()));
