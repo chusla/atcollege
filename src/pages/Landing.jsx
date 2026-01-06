@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { signInWithGoogle, isAuthenticated, isRegistrationComplete, getCurrentUser, loading: authLoading } = useAuth();
+  const { signInWithGoogle, isAuthenticated, isRegistrationComplete, getCurrentUser, loading: authLoading, profileLoaded } = useAuth();
   const [events, setEvents] = useState([]);
   const [places, setPlaces] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
@@ -27,13 +27,17 @@ export default function Landing() {
   // Redirect authenticated users appropriately
   useEffect(() => {
     if (!authLoading && isAuthenticated()) {
+      // Wait for profile to load before checking registration
+      if (!profileLoaded) {
+        return;
+      }
       if (!isRegistrationComplete()) {
         navigate(createPageUrl('Onboarding'));
       } else {
         navigate(createPageUrl('Home'));
       }
     }
-  }, [authLoading, isAuthenticated, isRegistrationComplete, navigate]);
+  }, [authLoading, isAuthenticated, isRegistrationComplete, profileLoaded, navigate]);
 
   useEffect(() => {
     loadData();
