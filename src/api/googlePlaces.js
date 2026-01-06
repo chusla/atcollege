@@ -179,7 +179,7 @@ export async function getPlaceDetails(placeId) {
   try {
     const params = {
       place_id: placeId,
-      fields: 'name,formatted_address,geometry,place_id,types,rating,user_ratings_total,photos,opening_hours,website,international_phone_number,price_level,business_status'
+      fields: 'name,formatted_address,geometry,place_id,types,rating,user_ratings_total,photos,opening_hours,website,international_phone_number,price_level,business_status,editorial_summary,reviews'
     };
 
     const data = await makeRequest('details', params);
@@ -198,10 +198,24 @@ export async function getPlaceDetails(placeId) {
 }
 
 /**
+ * Get photo URL from Google Places photo reference
+ * @param {string} photoReference - Photo reference from Google Places
+ * @param {number} maxWidth - Maximum width in pixels (default 400)
+ * @returns {string} Photo URL
+ */
+export function getPhotoUrl(photoReference, maxWidth = 400) {
+  if (!photoReference || !API_KEY) {
+    return null;
+  }
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoReference}&key=${API_KEY}`;
+}
+
+/**
  * Format place result from search
  */
 function formatPlaceResult(result) {
   const location = result.geometry?.location;
+  const photoRef = result.photos?.[0]?.photo_reference;
   return {
     google_place_id: result.place_id,
     name: result.name,
@@ -211,7 +225,8 @@ function formatPlaceResult(result) {
     rating: result.rating || null,
     user_ratings_total: result.user_ratings_total || 0,
     types: result.types || [],
-    photo_reference: result.photos?.[0]?.photo_reference || null,
+    photo_reference: photoRef || null,
+    photo_url: photoRef ? getPhotoUrl(photoRef, 800) : null, // Get high-res photo
     raw_data: result // Store full result for reference
   };
 }
@@ -221,6 +236,7 @@ function formatPlaceResult(result) {
  */
 function formatPlaceDetails(result) {
   const location = result.geometry?.location;
+  const photoRef = result.photos?.[0]?.photo_reference;
   return {
     google_place_id: result.place_id,
     name: result.name,
@@ -236,6 +252,9 @@ function formatPlaceDetails(result) {
     price_level: result.price_level || null,
     business_status: result.business_status || null,
     photos: result.photos || [],
+    photo_reference: photoRef || null,
+    photo_url: photoRef ? getPhotoUrl(photoRef, 800) : null,
+    editorials_summary: result.editorial_summary?.overview || null, // Plain English description
     raw_data: result // Store full result for reference
   };
 }

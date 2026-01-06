@@ -261,16 +261,55 @@ export const Place = {
       return null
     }
   },
+  async findByGooglePlaceIds(googlePlaceIds) {
+    try {
+      if (!googlePlaceIds || googlePlaceIds.length === 0) {
+        return []
+      }
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .in('google_place_id', googlePlaceIds)
+      
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error finding places by Google Place IDs:', error)
+      return []
+    }
+  },
   async createFromGooglePlace(googlePlaceData, campusId = null) {
     try {
+      // Generate description from Google data or editorial summary
+      let description = googlePlaceData.editorials_summary || googlePlaceData.editorial_summary?.overview || null;
+      
+      // If no description, create one from types and name
+      if (!description && googlePlaceData.types) {
+        const primaryTypes = googlePlaceData.types
+          .filter(t => !t.includes('establishment') && !t.includes('point_of_interest'))
+          .slice(0, 3)
+          .map(t => t.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+        
+        if (primaryTypes.length > 0) {
+          description = `${googlePlaceData.name} is a ${primaryTypes.join(', ')} located ${googlePlaceData.address ? `at ${googlePlaceData.address.split(',')[0]}` : 'in the area'}.`;
+        }
+      }
+
       const placeData = {
         name: googlePlaceData.name,
         address: googlePlaceData.address,
+        description: description,
         latitude: googlePlaceData.latitude,
         longitude: googlePlaceData.longitude,
-        rating: googlePlaceData.rating,
+        rating: googlePlaceData.rating || null, // Average rating from Google
+        image_url: googlePlaceData.photo_url || null, // Cover image from Google
         google_place_id: googlePlaceData.google_place_id,
-        google_place_data: googlePlaceData.raw_data || googlePlaceData,
+        google_place_data: {
+          ...(googlePlaceData.raw_data || googlePlaceData),
+          user_ratings_total: googlePlaceData.user_ratings_total || 0, // Total number of ratings
+          rating: googlePlaceData.rating || null, // Average rating
+          photo_url: googlePlaceData.photo_url || null
+        },
         source: 'google_maps',
         status: 'pending',
         categorization_status: 'pending',

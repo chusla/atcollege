@@ -38,9 +38,15 @@ export async function categorizePlace(placeId) {
       types: place.google_place_data?.types || []
     };
 
+    // Get the current session for authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    
     // Call Supabase Edge Function (which calls Anthropic API server-side)
     const { data: result, error } = await supabase.functions.invoke('categorize-place', {
-      body: { placeData }
+      body: { placeData },
+      headers: session ? {
+        Authorization: `Bearer ${session.access_token}`
+      } : {}
     });
 
     if (error) {
@@ -52,8 +58,18 @@ export async function categorizePlace(placeId) {
     }
 
     const confidence = result.confidence ? parseFloat(result.confidence) : 0.5;
+    const description = result.description || null;
 
-    // Update place with categorization results
+    // Update place with categorization results and description
+    const updateData = {};
+    if (description && !place.description) {
+      updateData.description = description;
+    }
+    if (confidence > 0.8 && result.category) {
+      updateData.category = mapLLMCategoryToSchema(result.category);
+    }
+
+    // Update categorization status
     await Place.updateCategorizationStatus(
       placeId,
       'completed',
@@ -61,11 +77,9 @@ export async function categorizePlace(placeId) {
       confidence
     );
 
-    // Optionally update category field if confidence is high
-    if (confidence > 0.8 && result.category) {
-      await Place.update(placeId, {
-        category: mapLLMCategoryToSchema(result.category)
-      });
+    // Update place with category and description if available
+    if (Object.keys(updateData).length > 0) {
+      await Place.update(placeId, updateData);
     }
 
     return {

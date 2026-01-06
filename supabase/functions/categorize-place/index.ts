@@ -37,17 +37,26 @@ serve(async (req) => {
     const googleTypes = placeData.google_place_data?.types || []
     const googleTypesStr = googleTypes.slice(0, 5).join(', ')
 
-    // Create prompt for Anthropic Claude
-    const prompt = `Categorize this place for a college campus directory. Return ONLY a JSON object with "category" and "confidence" (0.0 to 1.0) fields.
+    // Create prompt for Anthropic Claude - also generate a description
+    const prompt = `You are helping categorize and describe places for a college campus directory.
 
 Place Name: ${placeName}
 Address: ${placeAddress}
-Description: ${placeDescription}
+Current Description: ${placeDescription || 'None'}
 Google Place Types: ${googleTypesStr}
 
-Categories to choose from: Bars, Restaurants, Cafes, Gym, Library, Study Spots, Entertainment, Shopping, Housing, Other
+Tasks:
+1. Categorize this place. Categories: Bars, Restaurants, Cafes, Gym, Library, Study Spots, Entertainment, Shopping, Housing, Other
+2. Generate a brief, friendly description (2-3 sentences) that helps students understand what this place is about.
 
-Return JSON format: {"category": "Restaurants", "confidence": 0.95}`
+Return ONLY a JSON object with this exact format:
+{
+  "category": "Restaurants",
+  "confidence": 0.95,
+  "description": "A brief, friendly 2-3 sentence description of what this place offers and why students might visit it."
+}
+
+Example description style: "A popular BBQ spot known for its authentic Texas-style smoked meats and casual atmosphere. Great for groups looking for hearty meals and a laid-back dining experience."`
 
     // Call Anthropic Claude API
     const response = await fetch(ANTHROPIC_API_URL, {
@@ -59,7 +68,7 @@ Return JSON format: {"category": "Restaurants", "confidence": 0.95}`
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 200,
+        max_tokens: 300,
         messages: [
           {
             role: 'user',
@@ -100,12 +109,14 @@ Return JSON format: {"category": "Restaurants", "confidence": 0.95}`
     }
 
     const confidence = result.confidence ? parseFloat(result.confidence) : 0.5
+    const description = result.description || null
 
     return new Response(
       JSON.stringify({
         success: true,
         category: result.category,
-        confidence: confidence
+        confidence: confidence,
+        description: description
       }),
       {
         headers: {
