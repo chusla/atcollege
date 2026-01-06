@@ -1,13 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, MapPin, Filter } from 'lucide-react';
 
-export default function SearchBar({ onSearch }) {
-  const [query, setQuery] = useState('');
-  const [radius, setRadius] = useState('5');
-  const [category, setCategory] = useState('all');
+export default function SearchBar({ onSearch, initialQuery = '', initialRadius = '5', initialCategory = 'all' }) {
+  const [query, setQuery] = useState(initialQuery);
+  const [radius, setRadius] = useState(initialRadius);
+  const [category, setCategory] = useState(initialCategory);
+
+  // Update local state when initial values change (e.g., from URL params)
+  useEffect(() => {
+    if (initialQuery !== query) setQuery(initialQuery);
+  }, [initialQuery]);
+  
+  useEffect(() => {
+    if (initialRadius !== radius) setRadius(initialRadius);
+  }, [initialRadius]);
+  
+  useEffect(() => {
+    if (initialCategory !== category) setCategory(initialCategory);
+  }, [initialCategory]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
