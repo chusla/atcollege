@@ -5,11 +5,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { Home, Heart, User, Menu, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AddListingDialog from '../components/listings/AddListingDialog';
+import AuthModal from '../components/auth/AuthModal';
 
 export default function Layout({ children, currentPageName }) {
-  const { isAuthenticated, getCurrentUser, signInWithGoogle, loading } = useAuth();
+  const { isAuthenticated, getCurrentUser, signInWithGoogle, signInWithPassword, signUp, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAddListing, setShowAddListing] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   
   const user = getCurrentUser();
 
@@ -23,12 +25,8 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Profile', icon: User, page: 'Profile' },
   ];
 
-  const handleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      console.error('Sign in error:', error);
-    }
+  const handleSignIn = () => {
+    setAuthModalOpen(true);
   };
 
   // Public pages that don't need to wait for auth
@@ -46,6 +44,15 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Auth Modal */}
+      <AuthModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        onGoogleSignIn={signInWithGoogle}
+        onEmailSignIn={signInWithPassword}
+        onEmailSignUp={signUp}
+      />
+
       {/* Top Header */}
       {showNav && (
         <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
