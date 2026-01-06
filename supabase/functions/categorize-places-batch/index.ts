@@ -23,10 +23,14 @@ serve(async (req) => {
 
   try {
     if (!ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY not configured')
+      console.error('ANTHROPIC_API_KEY is missing from environment variables')
+      throw new Error('ANTHROPIC_API_KEY not configured. Please set it in Supabase Dashboard → Edge Functions → categorize-places-batch → Settings')
     }
 
-    const { places } = await req.json()
+    const body = await req.json().catch(() => ({}))
+    const { places } = body
+    
+    console.log('Received request with', places?.length || 0, 'places')
 
     if (!places || !Array.isArray(places) || places.length === 0) {
       throw new Error('places array is required')
@@ -89,7 +93,7 @@ The results array must have exactly ${placesToProcess.length} items, one for eac
         'anthropic-version': ANTHROPIC_VERSION
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-sonnet-4-5-20250929', // Latest Claude Sonnet 4.5 model
         max_tokens: 2000, // More tokens for batch processing
         messages: [
           {
@@ -175,10 +179,17 @@ The results array must have exactly ${placesToProcess.length} items, one for eac
     )
   } catch (error) {
     console.error('Error in categorize-places-batch function:', error)
+    console.error('Error stack:', error.stack)
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      hasApiKey: !!ANTHROPIC_API_KEY
+    })
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message,
+        details: process.env.DENO_ENV === 'development' ? error.stack : undefined
       }),
       {
         headers: {

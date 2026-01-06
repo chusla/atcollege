@@ -7,18 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, MapPin, Calendar, Clock, Star, Heart, Users, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import { GoogleMap, Marker } from '@react-google-maps/api';
+import GoogleMapsProvider from '@/components/maps/GoogleMapsProvider';
 import ThreadedComment from '../components/detail/ThreadedComment';
-
-// Fix leaflet icon issue
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
 export default function Detail() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
@@ -327,20 +318,24 @@ export default function Detail() {
               <Card className="p-4 mb-6">
                 <h3 className="font-semibold text-gray-900 mb-3">Location</h3>
                 <div className="h-64 rounded-lg overflow-hidden bg-gray-100">
-                  <MapContainer
-                    center={[item.latitude, item.longitude]}
-                    zoom={15}
-                    style={{ height: '100%', width: '100%' }}
-                    scrollWheelZoom={false}
-                  >
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    />
-                    <Marker position={[item.latitude, item.longitude]}>
-                      <Popup>{item.title || item.name}</Popup>
-                    </Marker>
-                  </MapContainer>
+                  <GoogleMapsProvider>
+                    <GoogleMap
+                      mapContainerStyle={{ width: '100%', height: '100%' }}
+                      center={{ lat: item.latitude, lng: item.longitude }}
+                      zoom={15}
+                      options={{
+                        streetViewControl: false,
+                        mapTypeControl: false,
+                        fullscreenControl: true,
+                        zoomControl: true,
+                      }}
+                    >
+                      <Marker
+                        position={{ lat: item.latitude, lng: item.longitude }}
+                        title={item.title || item.name}
+                      />
+                    </GoogleMap>
+                  </GoogleMapsProvider>
                 </div>
                 <p className="text-sm text-gray-600 mt-2">{item.location || item.address}</p>
               </Card>
