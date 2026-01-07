@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Campus } from '@/api/entities';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { GraduationCap, Plus, Pencil, Trash2 } from 'lucide-react';
+import { GraduationCap, Plus, Pencil, Trash2, MapPin } from 'lucide-react';
 import AdminLayout from '../components/layout/AdminLayout';
 
 export default function AdminCampuses() {
@@ -21,11 +21,10 @@ export default function AdminCampuses() {
   const [editingCampus, setEditingCampus] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    short_name: '',
-    city: '',
-    state: '',
-    address: '',
-    website: ''
+    location: '',
+    latitude: '',
+    longitude: '',
+    image_url: ''
   });
 
   useEffect(() => {
@@ -56,18 +55,26 @@ export default function AdminCampuses() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const submitData = {
+        name: formData.name,
+        location: formData.location,
+        latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+        longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+        image_url: formData.image_url || null
+      };
+      
       if (editingCampus) {
-        await Campus.update(editingCampus.id, formData);
+        await Campus.update(editingCampus.id, submitData);
       } else {
-        await Campus.create(formData);
+        await Campus.create(submitData);
       }
       setDialogOpen(false);
       setEditingCampus(null);
-      setFormData({ name: '', short_name: '', city: '', state: '', address: '', website: '' });
+      setFormData({ name: '', location: '', latitude: '', longitude: '', image_url: '' });
       loadCampuses();
     } catch (error) {
       console.error('Error saving campus:', error);
-      alert('Failed to save campus');
+      alert('Failed to save campus: ' + error.message);
     }
   };
 
@@ -75,28 +82,28 @@ export default function AdminCampuses() {
     setEditingCampus(campus);
     setFormData({
       name: campus.name || '',
-      short_name: campus.short_name || '',
-      city: campus.city || '',
-      state: campus.state || '',
-      address: campus.address || '',
-      website: campus.website || ''
+      location: campus.location || '',
+      latitude: campus.latitude?.toString() || '',
+      longitude: campus.longitude?.toString() || '',
+      image_url: campus.image_url || ''
     });
     setDialogOpen(true);
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this campus?')) return;
+    if (!confirm('Are you sure you want to delete this campus? This may affect users who have selected it.')) return;
     try {
       await Campus.delete(id);
       loadCampuses();
     } catch (error) {
       console.error('Error deleting campus:', error);
+      alert('Failed to delete campus: ' + error.message);
     }
   };
 
   const handleOpenDialog = () => {
     setEditingCampus(null);
-    setFormData({ name: '', short_name: '', city: '', state: '', address: '', website: '' });
+    setFormData({ name: '', location: '', latitude: '', longitude: '', image_url: '' });
     setDialogOpen(true);
   };
 
@@ -113,71 +120,76 @@ export default function AdminCampuses() {
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Campus Management</h1>
-          <p className="text-gray-600 mt-2">Add and manage universities</p>
+          <p className="text-gray-600 mt-2">Add and manage universities ({campuses.length} total)</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={handleOpenDialog}>
+            <Button onClick={handleOpenDialog} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
               Add Campus
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{editingCampus ? 'Edit Campus' : 'Add New Campus'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="name">Campus Name</Label>
+                <Label htmlFor="name">Campus Name *</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Dartmouth College"
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="short_name">Short Name</Label>
+                <Label htmlFor="location">Location (City, State)</Label>
                 <Input
-                  id="short_name"
-                  value={formData.short_name}
-                  onChange={(e) => setFormData({ ...formData, short_name: e.target.value })}
-                  placeholder="e.g., UCLA"
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="e.g., Hanover, NH"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="city">City</Label>
+                  <Label htmlFor="latitude">Latitude *</Label>
                   <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    id="latitude"
+                    type="number"
+                    step="any"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                    placeholder="e.g., 43.7044"
+                    required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="state">State</Label>
+                  <Label htmlFor="longitude">Longitude *</Label>
                   <Input
-                    id="state"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    id="longitude"
+                    type="number"
+                    step="any"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                    placeholder="e.g., -72.2887"
+                    required
                   />
                 </div>
               </div>
+              <p className="text-xs text-gray-500">
+                💡 Tip: Search the campus on Google Maps, right-click, and select "What's here?" to get coordinates.
+              </p>
               <div>
-                <Label htmlFor="address">Address</Label>
+                <Label htmlFor="image_url">Image URL (optional)</Label>
                 <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="website">Website</Label>
-                <Input
-                  id="website"
+                  id="image_url"
                   type="url"
-                  value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  placeholder="https://..."
                 />
               </div>
               <Button type="submit" className="w-full">
@@ -195,46 +207,52 @@ export default function AdminCampuses() {
               <TableRow>
                 <TableHead>Campus</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead>Website</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Coordinates</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {campuses.map((campus) => (
-                <TableRow key={campus.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <GraduationCap className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <span className="font-medium">{campus.name}</span>
-                        {campus.short_name && (
-                          <span className="text-gray-500 ml-2">({campus.short_name})</span>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{campus.city}, {campus.state}</TableCell>
-                  <TableCell>
-                    {campus.website && (
-                      <a href={campus.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                        Visit
-                      </a>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleEdit(campus)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(campus.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+              {campuses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                    No campuses yet. Click "Add Campus" to get started.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                campuses.map((campus) => (
+                  <TableRow key={campus.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <GraduationCap className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <span className="font-medium">{campus.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-600">{campus.location || '—'}</TableCell>
+                    <TableCell>
+                      {campus.latitude && campus.longitude ? (
+                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                          <MapPin className="w-3 h-3" />
+                          <span>{campus.latitude.toFixed(4)}, {campus.longitude.toFixed(4)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-orange-500 text-sm">⚠️ Missing</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(campus)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(campus.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -242,4 +260,3 @@ export default function AdminCampuses() {
     </AdminLayout>
   );
 }
-

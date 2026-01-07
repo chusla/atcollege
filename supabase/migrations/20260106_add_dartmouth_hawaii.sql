@@ -1,24 +1,7 @@
 -- Add Dartmouth College and University of Hawaii to campuses
 
-INSERT INTO campuses (name, city, state, country, latitude, longitude, timezone)
+INSERT INTO campuses (name, location, latitude, longitude)
 VALUES 
-  (
-    'Dartmouth College',
-    'Hanover',
-    'NH',
-    'USA',
-    43.7044,
-    -72.2887,
-    'America/New_York'
-  ),
-  (
-    'University of Hawaii at Manoa',
-    'Honolulu',
-    'HI',
-    'USA',
-    21.2969,
-    -157.8171,
-    'Pacific/Honolulu'
-  )
-ON CONFLICT (name) DO NOTHING;
-
+  ('Dartmouth College', 'Hanover, NH', 43.7044, -72.2887),
+  ('University of Hawaii at Manoa', 'Honolulu, HI', 21.2969, -157.8171)
+ON CONFLICT DO NOTHING;
