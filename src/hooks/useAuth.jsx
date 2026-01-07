@@ -198,9 +198,9 @@ export function AuthProvider({ children }) {
     return profile?.role === 'admin'
   }
 
-  // Check if registration is complete
+  // Check if registration is complete (must have both flag and campus selected)
   const isRegistrationComplete = () => {
-    return profile?.registration_complete === true
+    return profile?.registration_complete === true && !!profile?.selected_campus_id
   }
 
   // Update profile (uses upsert to handle case where profile doesn't exist)

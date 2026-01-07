@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearch } from '@/contexts/SearchContext';
 import { Place, SavedItem, Campus } from '@/api/entities';
@@ -11,8 +13,9 @@ import ResultsMapView from '../components/results/ResultsMapView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { MapPin, Filter, Building2 } from 'lucide-react';
+import { MapPin, Filter, Building2, ArrowLeft } from 'lucide-react';
 
 /**
  * Calculate relevance score for a place based on search query
@@ -64,12 +67,14 @@ function filterByRelevance(places, searchQuery, minScore = 15) {
 }
 
 export default function Places() {
-  const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
+  const { isAuthenticated, getCurrentUser, signInWithGoogle, profileLoaded } = useAuth();
   const { getCachedPlaces } = useSearch();
+  const navigate = useNavigate();
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
   const [view, setView] = useState('grid');
+  const [noCampus, setNoCampus] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
@@ -77,20 +82,30 @@ export default function Places() {
   const [searchQuery, setSearchQuery] = useState(urlParams.get('search') || '');
 
   useEffect(() => {
+    // Wait for profile to load before checking campus
+    if (!profileLoaded) return;
+    
+    const user = getCurrentUser();
+    if (!user?.selected_campus_id) {
+      setNoCampus(true);
+      setLoading(false);
+      return;
+    }
+    
+    setNoCampus(false);
     loadPlaces();
     loadSavedItems();
-  }, [category, radius, searchQuery]);
+  }, [category, radius, searchQuery, profileLoaded]);
 
   const [campusCenter, setCampusCenter] = useState(null);
 
   const loadPlaces = async () => {
     setLoading(true);
     try {
-      // Get user's campus location (default to Harvard if not set)
-      const defaultLocation = { lat: 42.3770, lng: -71.1167 }; // Harvard
-      let campusLocation = defaultLocation;
-      
+      // Get user's campus location (user must have a campus selected to reach this point)
       const user = getCurrentUser();
+      let campusLocation = null;
+      
       if (user?.selected_campus_id) {
         try {
           const campus = await Campus.get(user.selected_campus_id);
@@ -103,6 +118,14 @@ export default function Places() {
         } catch (error) {
           console.error('Error fetching campus:', error);
         }
+      }
+      
+      // If still no location (shouldn't happen), return early
+      if (!campusLocation) {
+        console.warn('No campus location available');
+        setNoCampus(true);
+        setLoading(false);
+        return;
       }
       
       setCampusCenter(campusLocation);
@@ -265,6 +288,35 @@ export default function Places() {
     }
   };
 
+  // Show prompt to select campus if user doesn't have one
+  if (noCampus) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center"
+          >
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Building2 className="w-8 h-8 text-orange-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Select Your Campus</h2>
+            <p className="text-gray-600 mb-6">
+              To see places near you, please select your college or university first.
+            </p>
+            <Button 
+              onClick={() => navigate(createPageUrl('Profile'))}
+              className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-8"
+            >
+              Go to Profile Settings
+            </Button>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -274,6 +326,15 @@ export default function Places() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
+          {searchQuery && (
+            <Link 
+              to={`${createPageUrl('Home')}?search=${encodeURIComponent(searchQuery)}&radius=${radius}&category=${category}`}
+              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 group"
+            >
+              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+              <span>Back to search</span>
+            </Link>
+          )}
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {searchQuery ? `Places: "${searchQuery}"` : 'Places'}
           </h1>
