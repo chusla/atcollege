@@ -179,7 +179,7 @@ export default function ListingsMap({
   radiusMiles = null,
   onMarkerClick = null,
   showInfoWindow = true,
-  height = '400px'
+  height = '500px'
 }) {
   const effectiveZoom = zoom ?? (radiusMiles ? getZoomForRadius(radiusMiles) : 13);
   const [selectedItem, setSelectedItem] = useState(null)

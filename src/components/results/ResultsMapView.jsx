@@ -11,7 +11,7 @@ export default function ResultsMapView({ items, itemType, center = null, radiusM
   if (!apiKey) {
     return (
       <Card className="mb-6 overflow-hidden">
-        <div className="h-96 bg-gray-100 flex items-center justify-center">
+        <div className="h-[500px] bg-gray-100 flex items-center justify-center">
           <div className="text-center">
             <p className="text-gray-500 mb-2">Map View</p>
             <p className="text-sm text-gray-400">
@@ -26,7 +26,7 @@ export default function ResultsMapView({ items, itemType, center = null, radiusM
   if (itemsWithCoords.length === 0) {
     return (
       <Card className="mb-6 overflow-hidden">
-        <div className="h-96 bg-gray-100 flex items-center justify-center">
+        <div className="h-[500px] bg-gray-100 flex items-center justify-center">
           <div className="text-center">
             <p className="text-gray-500 mb-2">Map View</p>
             <p className="text-sm text-gray-400">
@@ -45,9 +45,8 @@ export default function ResultsMapView({ items, itemType, center = null, radiusM
         itemType={itemType} 
         center={center}
         radiusMiles={radiusMiles}
-        height="384px"
+        height="500px"
       />
     </Card>
   );
 }
-
