@@ -376,8 +376,10 @@ export default function Home() {
       const existingDbIds = new Set(filteredDbPlaces.map(p => p.google_place_id).filter(Boolean));
       const newGooglePlaces = quickGooglePlaces.filter(p => !existingDbIds.has(p.google_place_id));
       
-      // Apply relevance filtering to Google results
-      const relevantGooglePlaces = filterByRelevance(newGooglePlaces, query, 15);
+      // Trust Google's relevance for menu item searches (like "corned beef hash")
+      // Google's API already returns results ranked by relevance to the search query
+      // Only apply our filter to remove obviously wrong results (score = 0)
+      const relevantGooglePlaces = filterByRelevance(newGooglePlaces, query, 0);
       console.log(`🔍 [SEARCH] Relevance filter: ${newGooglePlaces.length} -> ${relevantGooglePlaces.length} places`);
       
       let mergedPlaces = [...filteredDbPlaces, ...relevantGooglePlaces];

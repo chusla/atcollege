@@ -235,8 +235,9 @@ export default function Places() {
       });
 
       // Apply relevance filtering if there's a search query
+      // Use low threshold (0) to trust Google's relevance ranking while still sorting by our score
       if (searchQuery) {
-        data = filterByRelevance(data, searchQuery, 15);
+        data = filterByRelevance(data, searchQuery, 0);
         console.log(`🔍 [PLACES] Relevance filter applied: ${data.length} relevant results`);
       }
 
