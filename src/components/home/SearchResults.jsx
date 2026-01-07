@@ -134,7 +134,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
 
   if (totalResults === 0 && !loadingMore) {
     return (
-      <div className="text-center py-12 mb-10 animate-fade-in">
+      <div className="text-center py-12 mb-10">
         <p className="text-gray-500">No results found for "{query}"</p>
       </div>
     );
@@ -195,7 +195,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
   };
 
   return (
-    <div className="mb-10 animate-fade-in">
+    <div className="mb-10">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-500">
           <span className="tabular-nums">{totalResults}</span> results for "{query}"
