@@ -50,7 +50,25 @@ export default function Places() {
 
       const filters = {};
       if (category && category !== 'all') {
-        filters.category = category.toLowerCase();
+        // Map filter values to database category values
+        const categoryMap = {
+          'restaurant': 'Restaurants',
+          'restaurants': 'Restaurants',
+          'cafe': 'Cafes',
+          'cafes': 'Cafes',
+          'bar': 'Bars',
+          'bars': 'Bars',
+          'gym': 'Other', // Gym maps to Other in schema
+          'library': 'Study Spots', // Library maps to Study Spots
+          'study_spot': 'Study Spots',
+          'study_spots': 'Study Spots',
+          'housing': 'Housing',
+          'entertainment': 'Entertainment',
+          'shopping': 'Shopping',
+          'other': 'Other'
+        };
+        const dbCategory = categoryMap[category.toLowerCase()] || category;
+        filters.category = dbCategory;
       }
       
       // Use raw query to include both approved and pending statuses
@@ -149,12 +167,14 @@ export default function Places() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="restaurant">Restaurants</SelectItem>
-                    <SelectItem value="cafe">Cafes</SelectItem>
-                    <SelectItem value="bar">Bars</SelectItem>
-                    <SelectItem value="gym">Gym</SelectItem>
-                    <SelectItem value="library">Library</SelectItem>
-                    <SelectItem value="study_spot">Study Spots</SelectItem>
+                    <SelectItem value="restaurants">Restaurants</SelectItem>
+                    <SelectItem value="cafes">Cafes</SelectItem>
+                    <SelectItem value="bars">Bars</SelectItem>
+                    <SelectItem value="study_spots">Study Spots</SelectItem>
+                    <SelectItem value="entertainment">Entertainment</SelectItem>
+                    <SelectItem value="shopping">Shopping</SelectItem>
+                    <SelectItem value="housing">Housing</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Heart, Star, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { mapLLMCategoryToSchema } from '@/api/llmCategorization';
 
 export default function PlaceRowCard({ place, onSave, isSaved }) {
   const handleSaveClick = (e) => {
@@ -10,6 +11,9 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
     e.stopPropagation();
     onSave?.(place);
   };
+
+  // Get display category: use category if available, otherwise normalize llm_category, fallback to 'Other'
+  const displayCategory = place.category || (place.llm_category ? mapLLMCategoryToSchema(place.llm_category) : 'Other');
 
   return (
     <Link
@@ -27,8 +31,8 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h3 className="font-semibold text-gray-900 mb-1">{place.name}</h3>
-                {place.category && (
-                  <Badge className="bg-green-100 text-green-700 text-xs">{place.category}</Badge>
+                {displayCategory && (
+                  <Badge className="bg-green-100 text-green-700 text-xs">{displayCategory}</Badge>
                 )}
               </div>
               <button

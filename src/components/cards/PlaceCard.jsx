@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Heart, Star, MapPin } from 'lucide-react';
+import { mapLLMCategoryToSchema } from '@/api/llmCategorization';
 
 export default function PlaceCard({ place, onSave, isSaved }) {
   const handleSaveClick = (e) => {
@@ -9,6 +10,9 @@ export default function PlaceCard({ place, onSave, isSaved }) {
     e.stopPropagation();
     onSave?.(place);
   };
+
+  // Get display category: use category if available, otherwise normalize llm_category, fallback to 'Other'
+  const displayCategory = place.category || (place.llm_category ? mapLLMCategoryToSchema(place.llm_category) : 'Other');
 
   return (
     <Link 
@@ -34,9 +38,9 @@ export default function PlaceCard({ place, onSave, isSaved }) {
           </button>
 
           {/* Category Badge */}
-          {place.category && (
+          {displayCategory && (
             <div className="absolute top-3 left-3 px-2 py-1 bg-green-600 text-white text-xs rounded-full">
-              {place.category}
+              {displayCategory}
             </div>
           )}
 

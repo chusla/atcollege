@@ -105,8 +105,9 @@ export async function categorizePlace(placeId) {
 
 /**
  * Map LLM category to schema category
+ * Exported for use in components to normalize category display
  */
-function mapLLMCategoryToSchema(llmCategory) {
+export function mapLLMCategoryToSchema(llmCategory) {
   // Allowed categories: 'Bars', 'Restaurants', 'Cafes', 'Housing', 'Study Spots', 'Entertainment', 'Shopping', 'Other'
   const categoryMap = {
     'bar': 'Bars',
