@@ -155,7 +155,7 @@ export default function Landing() {
   const LoadingSkeleton = () => (
     <>
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="min-w-[200px] max-w-[280px]">
+        <div key={i} className="min-w-[160px] sm:min-w-[180px] md:min-w-[200px] max-w-[160px] sm:max-w-[240px] md:max-w-[280px] flex-shrink-0">
           <Skeleton className="aspect-[4/5] rounded-2xl" />
         </div>
       ))}
@@ -173,19 +173,20 @@ export default function Landing() {
       />
       <HeroSection onJoin={handleJoin} onExplore={handleExplore} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
         {/* Featured Events */}
         <FeaturedSection title="Featured Events" viewAllLink="Events">
           {loading ? (
             <LoadingSkeleton />
           ) : events.length > 0 ? (
             events.map((event) => (
-              <EventCard 
-                key={event.id} 
-                event={event} 
-                onSave={handleSaveEvent}
-                isSaved={savedEventIds.has(event.id)}
-              />
+              <div key={event.id} className="min-w-[160px] sm:min-w-[180px] md:min-w-[200px] max-w-[160px] sm:max-w-[240px] md:max-w-[280px] flex-shrink-0">
+                <EventCard 
+                  event={event} 
+                  onSave={handleSaveEvent}
+                  isSaved={savedEventIds.has(event.id)}
+                />
+              </div>
             ))
           ) : (
             <p className="text-gray-500">No events at the moment</p>
@@ -198,12 +199,13 @@ export default function Landing() {
             <LoadingSkeleton />
           ) : places.length > 0 ? (
             places.map((place) => (
-              <PlaceCard 
-                key={place.id} 
-                place={place}
-                onSave={handleSavePlace}
-                isSaved={savedPlaceIds.has(place.id)}
-              />
+              <div key={place.id} className="min-w-[160px] sm:min-w-[180px] md:min-w-[200px] max-w-[160px] sm:max-w-[240px] md:max-w-[280px] flex-shrink-0">
+                <PlaceCard 
+                  place={place}
+                  onSave={handleSavePlace}
+                  isSaved={savedPlaceIds.has(place.id)}
+                />
+              </div>
             ))
           ) : (
             <p className="text-gray-500">No places listed yet</p>
@@ -216,12 +218,13 @@ export default function Landing() {
             <LoadingSkeleton />
           ) : opportunities.length > 0 ? (
             opportunities.map((opp) => (
-              <OpportunityCard 
-                key={opp.id} 
-                opportunity={opp}
-                onSave={handleSaveOpp}
-                isSaved={savedOppIds.has(opp.id)}
-              />
+              <div key={opp.id} className="min-w-[160px] sm:min-w-[180px] md:min-w-[200px] max-w-[160px] sm:max-w-[240px] md:max-w-[280px] flex-shrink-0">
+                <OpportunityCard 
+                  opportunity={opp}
+                  onSave={handleSaveOpp}
+                  isSaved={savedOppIds.has(opp.id)}
+                />
+              </div>
             ))
           ) : (
             <p className="text-gray-500">No opportunities available</p>
@@ -234,12 +237,13 @@ export default function Landing() {
             <LoadingSkeleton />
           ) : groups.length > 0 ? (
             groups.map((group) => (
-              <GroupCard 
-                key={group.id} 
-                group={group}
-                onSave={handleSaveGroup}
-                isSaved={savedGroupIds.has(group.id)}
-              />
+              <div key={group.id} className="min-w-[160px] sm:min-w-[180px] md:min-w-[200px] max-w-[160px] sm:max-w-[240px] md:max-w-[280px] flex-shrink-0">
+                <GroupCard 
+                  group={group}
+                  onSave={handleSaveGroup}
+                  isSaved={savedGroupIds.has(group.id)}
+                />
+              </div>
             ))
           ) : (
             <p className="text-gray-500">No groups yet</p>
