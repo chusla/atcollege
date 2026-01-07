@@ -116,7 +116,7 @@ const ResultItem = memo(function ResultItem({ item, type, isPlaces }) {
          prev.status === next.status;
 });
 
-export default function SearchResults({ results, query, loading, loadingMore }) {
+export default function SearchResults({ results, query, radius, category, loading, loadingMore }) {
   if (loading) {
     return (
       <div className="space-y-6 mb-10">
@@ -159,7 +159,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
           </div>
           {count > 0 && (
             <Link
-              to={`${createPageUrl(linkPage)}?search=${encodeURIComponent(query)}`}
+              to={`${createPageUrl(linkPage)}?search=${encodeURIComponent(query)}&radius=${radius || '5'}&category=${category || 'all'}`}
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
               View all {count > 5 && `(${count})`}

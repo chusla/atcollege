@@ -550,6 +550,8 @@ export default function Home() {
           <SearchResults 
             results={searchResults} 
             query={searchQuery}
+            radius={searchRadius}
+            category={searchCategory}
             loading={searchLoading}
             loadingMore={loadingMore}
           />
