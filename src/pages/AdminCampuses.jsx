@@ -10,11 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { GraduationCap, Plus, Pencil, Trash2, MapPin } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 import AdminLayout from '../components/layout/AdminLayout';
 
 export default function AdminCampuses() {
   const navigate = useNavigate();
   const { isAdmin, isAuthenticated, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [campuses, setCampuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -65,8 +67,16 @@ export default function AdminCampuses() {
       
       if (editingCampus) {
         await Campus.update(editingCampus.id, submitData);
+        toast({
+          title: "Campus updated",
+          description: `${formData.name} has been updated successfully.`,
+        });
       } else {
         await Campus.create(submitData);
+        toast({
+          title: "Campus added",
+          description: `${formData.name} has been added to the list.`,
+        });
       }
       setDialogOpen(false);
       setEditingCampus(null);
@@ -74,7 +84,11 @@ export default function AdminCampuses() {
       loadCampuses();
     } catch (error) {
       console.error('Error saving campus:', error);
-      alert('Failed to save campus: ' + error.message);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save campus",
+        variant: "destructive",
+      });
     }
   };
 
@@ -94,10 +108,18 @@ export default function AdminCampuses() {
     if (!confirm('Are you sure you want to delete this campus? This may affect users who have selected it.')) return;
     try {
       await Campus.delete(id);
+      toast({
+        title: "Campus deleted",
+        description: "The campus has been removed.",
+      });
       loadCampuses();
     } catch (error) {
       console.error('Error deleting campus:', error);
-      alert('Failed to delete campus: ' + error.message);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete campus",
+        variant: "destructive",
+      });
     }
   };
 
