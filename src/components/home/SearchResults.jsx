@@ -157,12 +157,12 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
               </span>
             )}
           </div>
-          {count > 5 && (
+          {count > 0 && (
             <Link
               to={`${createPageUrl(linkPage)}?search=${encodeURIComponent(query)}`}
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
-              View all
+              View all {count > 5 && `(${count})`}
               <ChevronRight className="w-4 h-4" />
             </Link>
           )}
