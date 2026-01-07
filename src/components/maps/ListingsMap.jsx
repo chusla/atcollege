@@ -206,6 +206,18 @@ export default function ListingsMap({
     return defaultCenter
   }, [center, itemsWithCoords])
 
+  // Pan map to hovered item with smooth animation
+  const handleMarkerHover = useCallback((item) => {
+    setHoveredItem(item);
+    if (map && item) {
+      // Smoothly pan to the hovered marker
+      map.panTo({
+        lat: parseFloat(item.latitude),
+        lng: parseFloat(item.longitude)
+      });
+    }
+  }, [map]);
+
   const onLoad = useCallback((map) => {
     setMap(map)
     
@@ -289,7 +301,7 @@ export default function ListingsMap({
               isHovered={hoveredItem?.id === item.id}
               isSelected={selectedItem?.id === item.id}
               onClick={() => handleMarkerClick(item)}
-              onHover={() => setHoveredItem(item)}
+              onHover={() => handleMarkerHover(item)}
               onLeave={() => setHoveredItem(null)}
             />
           </OverlayView>
