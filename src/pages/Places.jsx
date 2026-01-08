@@ -8,9 +8,10 @@ import ViewToggle from '../components/results/ViewToggle';
 import ResultsMapView from '../components/results/ResultsMapView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { MapPin, Filter, Building2 } from 'lucide-react';
+import { MapPin, Filter, Building2, Star, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
 
 export default function Places() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
@@ -18,10 +19,13 @@ export default function Places() {
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
   const [view, setView] = useState('grid');
+  const [showFilters, setShowFilters] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
   const [radius, setRadius] = useState(urlParams.get('radius') || 'any');
+  const [ratingFilter, setRatingFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('highest');
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
 
@@ -35,7 +39,7 @@ export default function Places() {
   useEffect(() => {
     loadPlaces();
     loadSavedItems();
-  }, [category, radius, userLocation]);
+  }, [category, radius, userLocation, ratingFilter, sortBy]);
 
   const getUserLocation = () => {
     if (!navigator.geolocation) {
@@ -110,25 +114,77 @@ export default function Places() {
 
       // Use raw query to include both approved and pending statuses
       let data = await Place.filter(filters, {
-        orderBy: { column: 'rating', ascending: false },
         limit: 100 // Get more to filter by radius
       });
 
       // Filter to approved or pending status (exclude rejected/spam)
       data = (data || []).filter(p => ['approved', 'pending'].includes(p.status));
 
-      // Filter by radius if location is available and radius specified
+      // --- Client-side Filtering ---
+
+      // 1. Rating Filter
+      if (ratingFilter !== 'all') {
+        data = data.filter(p => {
+          const r = p.rating || 0;
+          switch (ratingFilter) {
+            case 'no_rating':
+              return r === 0;
+            case '5':
+              return r >= 4.8; // Approximate for 5.0
+            case '4':
+              return r >= 4.0;
+            case 'under_3':
+              return r > 0 && r <= 3.0;
+            default:
+              return true;
+          }
+        });
+      }
+
+      // 2. Radius Filter
       if (userLocation && radius !== 'any' && radius !== 'all') {
         data = filterByRadius(
-          data || [],
+          data,
           userLocation.lat,
           userLocation.lng,
           parseFloat(radius)
         );
       }
 
-      // Limit results after radius filtering
-      setPlaces((data || []).slice(0, 50));
+      // --- Client-side Sorting ---
+      data.sort((a, b) => {
+        const rA = a.rating || 0;
+        const rB = b.rating || 0;
+
+        switch (sortBy) {
+          case 'highest':
+            // High -> Low, then No rating (0)
+            return rB - rA;
+
+          case 'lowest':
+            // Low (but > 0) -> High, then No rating
+            // Treat 0 as Infinity for sorting so it goes to end
+            const valA = rA === 0 ? 999 : rA;
+            const valB = rB === 0 ? 999 : rB;
+            return valA - valB;
+
+          case 'no_rating':
+            // No rating (0) first, then High -> Low
+            const isNoRatingA = rA === 0 ? 1 : 0;
+            const isNoRatingB = rB === 0 ? 1 : 0;
+            if (isNoRatingA !== isNoRatingB) {
+              return isNoRatingB - isNoRatingA; // 1 (true) first
+            }
+            // If both have rating or both no rating, sort desc
+            return rB - rA;
+
+          default:
+            return rB - rA;
+        }
+      });
+
+      // Limit results
+      setPlaces(data.slice(0, 50));
     } catch (error) {
       console.error('Error loading places:', error);
     } finally {
@@ -188,18 +244,31 @@ export default function Places() {
           <p className="text-gray-600">Find the best spots in and around campus</p>
         </motion.div>
 
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden mb-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </Button>
+        </div>
+
         {/* Filters */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8"
+          initial={false}
+          animate={{ height: 'auto' }}
+          className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8 ${showFilters ? 'block' : 'hidden'} lg:block`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-4">
+              {/* Category Filter */}
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-500" />
+                <Filter className="w-4 h-4 text-gray-500 shrink-0" />
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-full lg:w-40">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -216,10 +285,11 @@ export default function Places() {
                 </Select>
               </div>
 
+              {/* Radius Filter */}
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-500" />
+                <MapPin className="w-4 h-4 text-gray-500 shrink-0" />
                 <Select value={radius} onValueChange={setRadius}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-full lg:w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -232,8 +302,42 @@ export default function Places() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Rating Filter */}
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-gray-500 shrink-0" />
+                <Select value={ratingFilter} onValueChange={setRatingFilter}>
+                  <SelectTrigger className="w-full lg:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Ratings</SelectItem>
+                    <SelectItem value="5">5.0</SelectItem>
+                    <SelectItem value="4">4.0+</SelectItem>
+                    <SelectItem value="under_3">&lt; 3.0</SelectItem>
+                    <SelectItem value="no_rating">No rating yet</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort By */}
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-4 h-4 text-gray-500 shrink-0" />
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-full lg:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="highest">Highest Rating</SelectItem>
+                    <SelectItem value="lowest">Lowest Rating</SelectItem>
+                    <SelectItem value="no_rating">No Rating</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <ViewToggle view={view} onViewChange={setView} />
+            <div className="w-fit">
+              <ViewToggle view={view} onViewChange={setView} />
+            </div>
           </div>
         </motion.div>
 
@@ -244,14 +348,14 @@ export default function Places() {
 
         {/* Places Grid */}
         {loading ? (
-          <div className={view === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}>
+          <div className={view === 'grid' ? 'grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}>
             {[...Array(10)].map((_, i) => (
               <Skeleton key={i} className={view === 'grid' ? 'aspect-[4/5] rounded-2xl' : 'h-28 rounded-xl'} />
             ))}
           </div>
         ) : places.length > 0 ? (
           view === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {places.map((place) => (
                 <PlaceCard
                   key={place.id}

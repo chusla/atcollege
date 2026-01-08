@@ -46,7 +46,10 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
               {place.rating && (
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  {place.rating.toFixed(1)}
+                  <span className="font-medium text-gray-900">{place.rating.toFixed(1)}</span>
+                  {place.user_ratings_total > 0 && (
+                    <span className="text-gray-400">({place.user_ratings_total})</span>
+                  )}
                 </div>
               )}
               {place.address && (
