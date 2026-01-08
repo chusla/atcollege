@@ -42,11 +42,11 @@ export default function Detail() {
       }
       setItem(data);
 
-      const allComments = await Comment.filter({ 
-        item_type: itemType, 
-        item_id: itemId 
+      const allComments = await Comment.filter({
+        item_type: itemType,
+        item_id: itemId
       });
-      
+
       const threadedComments = buildCommentTree(allComments || []);
       setComments(threadedComments);
 
@@ -198,13 +198,13 @@ export default function Detail() {
             </div>
 
             {/* Info Card */}
-            <Card className="p-6 mb-6">
+            <Card className="p-4 lg:p-6 mb-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
                     {item.title || item.name}
                   </h1>
-                  
+
                   <div className="flex flex-wrap gap-2 mb-4">
                     {item.category && (
                       <Badge className="bg-blue-100 text-blue-700">{item.category}</Badge>
@@ -242,6 +242,12 @@ export default function Detail() {
                     <span>{format(new Date(item.date), 'MMMM d, yyyy')}</span>
                   </div>
                 )}
+                {item.time && (
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <Clock className="w-5 h-5" />
+                    <span>{item.time.slice(0, 5)}</span>
+                  </div>
+                )}
                 {(item.location || item.address) && (
                   <div className="flex items-center gap-3 text-gray-600">
                     <MapPin className="w-5 h-5" />
@@ -270,7 +276,7 @@ export default function Detail() {
             </Card>
 
             {/* Comments Section */}
-            <Card className="p-6">
+            <Card className="p-4 lg:p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Discussion ({comments.length})
               </h2>
