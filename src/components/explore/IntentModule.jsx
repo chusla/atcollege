@@ -13,11 +13,13 @@ export default function IntentModule({
   onSubmit,
   previewImage,
   previewTitle,
-  previewSubtitle
+  previewSubtitle,
+  initialTimeWindow,
+  initialRadius
 }) {
   const [category, setCategory] = useState('all');
-  const [timeWindow, setTimeWindow] = useState('1month');
-  const [radius, setRadius] = useState('5');
+  const [timeWindow, setTimeWindow] = useState(initialTimeWindow || '1month');
+  const [radius, setRadius] = useState(initialRadius || '5');
 
   const handleSubmit = () => {
     onSubmit({ category, timeWindow, radius });
@@ -74,6 +76,8 @@ export default function IntentModule({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="any">Any Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
                     <SelectItem value="1week">This week</SelectItem>
                     <SelectItem value="2weeks">2 weeks</SelectItem>
                     <SelectItem value="1month">1 month</SelectItem>
@@ -88,14 +92,16 @@ export default function IntentModule({
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-gray-500" />
                 <Select value={radius} onValueChange={setRadius}>
-                  <SelectTrigger className="w-28">
+                  <SelectTrigger className="w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="any">Any distance</SelectItem>
                     <SelectItem value="1">1 mile</SelectItem>
                     <SelectItem value="2">2 miles</SelectItem>
                     <SelectItem value="5">5 miles</SelectItem>
                     <SelectItem value="10">10 miles</SelectItem>
+                    <SelectItem value="20">20 miles</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

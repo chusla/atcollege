@@ -494,6 +494,8 @@ export default function Home() {
               ]}
               showTimeWindow={true}
               showRadius={true}
+              initialTimeWindow="any"
+              initialRadius="any"
               onSubmit={handleEventsSubmit}
               previewImage="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400"
               previewTitle="Concert in Park"
@@ -517,6 +519,7 @@ export default function Home() {
               ]}
               showTimeWindow={false}
               showRadius={true}
+              initialRadius="any"
               onSubmit={handlePlacesSubmit}
               previewImage="https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400"
               previewTitle="Campus Café"
@@ -537,6 +540,8 @@ export default function Home() {
               ]}
               showTimeWindow={true}
               showRadius={true}
+              initialTimeWindow="any"
+              initialRadius="any"
               onSubmit={handleOpportunitiesSubmit}
               previewImage="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400"
               previewTitle="Meet new friends"

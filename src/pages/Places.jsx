@@ -21,33 +21,70 @@ export default function Places() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
-  const [radius, setRadius] = useState(urlParams.get('radius') || '5');
+  const [radius, setRadius] = useState(urlParams.get('radius') || 'any');
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+
+  useEffect(() => {
+    // If radius is set, we need location
+    if (radius && radius !== 'any') {
+      getUserLocation();
+    }
+  }, [radius]);
 
   useEffect(() => {
     loadPlaces();
     loadSavedItems();
-  }, [category]);
+  }, [category, radius, userLocation]);
+
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      // Fallback to campus location if geolocation not supported
+      fetchCampusLocation();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationError(null);
+      },
+      (error) => {
+        console.warn('Geolocation denied or failed, falling back to campus location:', error);
+        fetchCampusLocation();
+      }
+    );
+  };
+
+  const fetchCampusLocation = async () => {
+    try {
+      if (isAuthenticated()) {
+        const user = getCurrentUser();
+        if (user?.selected_campus_id) {
+          const campus = await Campus.get(user.selected_campus_id);
+          if (campus && campus.latitude && campus.longitude) {
+            setUserLocation({
+              lat: parseFloat(campus.latitude),
+              lng: parseFloat(campus.longitude)
+            });
+            setLocationError(null); // Clear error since we have a fallback
+            return;
+          }
+        }
+      }
+      setLocationError('Please enable location services to filter by distance');
+    } catch (error) {
+      console.error('Error fetching campus location:', error);
+      setLocationError('Unable to retrieve location');
+    }
+  };
 
   const loadPlaces = async () => {
     setLoading(true);
     try {
-      // Get user's campus location
-      let campusLocation = null;
-      const user = getCurrentUser();
-      if (user?.selected_campus_id) {
-        try {
-          const campus = await Campus.get(user.selected_campus_id);
-          if (campus?.latitude && campus?.longitude) {
-            campusLocation = {
-              lat: parseFloat(campus.latitude),
-              lng: parseFloat(campus.longitude)
-            };
-          }
-        } catch (error) {
-          console.error('Error fetching campus:', error);
-        }
-      }
-
       const filters = {};
       if (category && category !== 'all') {
         // Map filter values to database category values
@@ -70,22 +107,22 @@ export default function Places() {
         const dbCategory = categoryMap[category.toLowerCase()] || category;
         filters.category = dbCategory;
       }
-      
+
       // Use raw query to include both approved and pending statuses
-      let data = await Place.filter(filters, { 
-        orderBy: { column: 'rating', ascending: false }, 
+      let data = await Place.filter(filters, {
+        orderBy: { column: 'rating', ascending: false },
         limit: 100 // Get more to filter by radius
       });
-      
+
       // Filter to approved or pending status (exclude rejected/spam)
       data = (data || []).filter(p => ['approved', 'pending'].includes(p.status));
 
-      // Filter by radius if campus location and radius specified
-      if (campusLocation && radius !== 'all') {
+      // Filter by radius if location is available and radius specified
+      if (userLocation && radius !== 'any' && radius !== 'all') {
         data = filterByRadius(
           data || [],
-          campusLocation.lat,
-          campusLocation.lng,
+          userLocation.lat,
+          userLocation.lng,
           parseFloat(radius)
         );
       }
@@ -182,14 +219,16 @@ export default function Places() {
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-gray-500" />
                 <Select value={radius} onValueChange={setRadius}>
-                  <SelectTrigger className="w-28">
+                  <SelectTrigger className="w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="any">Any distance</SelectItem>
                     <SelectItem value="1">1 mile</SelectItem>
                     <SelectItem value="2">2 miles</SelectItem>
                     <SelectItem value="5">5 miles</SelectItem>
                     <SelectItem value="10">10 miles</SelectItem>
+                    <SelectItem value="20">20 miles</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
