@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { Heart, Calendar, MapPin } from 'lucide-react';
+import { Heart, Calendar, MapPin, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function EventCard({ event, onSave, isSaved }) {
@@ -12,7 +12,7 @@ export default function EventCard({ event, onSave, isSaved }) {
   };
 
   return (
-    <Link 
+    <Link
       to={`${createPageUrl('Detail')}?type=event&id=${event.id}`}
       className="group block"
     >
@@ -23,13 +23,13 @@ export default function EventCard({ event, onSave, isSaved }) {
             alt={event.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          
+
           {/* Save Button */}
           <button
             onClick={handleSaveClick}
             className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors"
           >
-            <Heart 
+            <Heart
               className={`w-4 h-4 ${isSaved ? 'fill-orange-500 text-orange-500' : 'text-gray-600'}`}
             />
           </button>
@@ -50,6 +50,12 @@ export default function EventCard({ event, onSave, isSaved }) {
               <div className="flex items-center gap-1 text-white/80 text-xs">
                 <Calendar className="w-3 h-3" />
                 {format(new Date(event.date), 'MMM d, yyyy')}
+              </div>
+            )}
+            {event.time && (
+              <div className="flex items-center gap-1 text-white/80 text-xs mt-1">
+                <Clock className="w-3 h-3" />
+                {event.time.slice(0, 5)}
               </div>
             )}
           </div>
