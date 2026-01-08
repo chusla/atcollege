@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Event, SavedItem } from '@/api/entities';
+import { Event, SavedItem, Campus } from '@/api/entities';
+import { getBoundingBox, filterByRadius } from '@/utils/geo';
 import EventCard from '../components/cards/EventCard';
 import EventRowCard from '../components/results/EventRowCard';
 import ViewToggle from '../components/results/ViewToggle';
@@ -22,13 +23,67 @@ export default function Events() {
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
   // Changed default to 'any'
   const [timeWindow, setTimeWindow] = useState(urlParams.get('timeWindow') || 'any');
-  const [radius, setRadius] = useState(urlParams.get('radius') || '5');
+  const [radius, setRadius] = useState(urlParams.get('radius') || 'any');
   const [sortBy, setSortBy] = useState('name_asc');
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+
+  useEffect(() => {
+    // If radius is set, we need location
+    if (radius && radius !== 'any') {
+      getUserLocation();
+    }
+  }, [radius]);
 
   useEffect(() => {
     loadEvents();
     loadSavedItems();
-  }, [category, timeWindow, sortBy]);
+  }, [category, timeWindow, sortBy, userLocation, radius]);
+
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      // Fallback to campus location if geolocation not supported
+      fetchCampusLocation();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationError(null);
+      },
+      (error) => {
+        console.warn('Geolocation denied or failed, falling back to campus location:', error);
+        fetchCampusLocation();
+      }
+    );
+  };
+
+  const fetchCampusLocation = async () => {
+    try {
+      if (isAuthenticated()) {
+        const user = getCurrentUser();
+        if (user?.selected_campus_id) {
+          const campus = await Campus.get(user.selected_campus_id);
+          if (campus && campus.latitude && campus.longitude) {
+            setUserLocation({
+              lat: campus.latitude,
+              lng: campus.longitude
+            });
+            setLocationError(null); // Clear error since we have a fallback
+            return;
+          }
+        }
+      }
+      setLocationError('Please enable location services to filter by distance');
+    } catch (error) {
+      console.error('Error fetching campus location:', error);
+      setLocationError('Unable to retrieve location');
+    }
+  };
 
   const loadEvents = async () => {
     setLoading(true);
@@ -36,6 +91,20 @@ export default function Events() {
       const filters = { status: 'approved' };
       if (category && category !== 'all') {
         filters.category = category.toLowerCase();
+      }
+
+      // Location filter
+      let bbox = null;
+      if (radius && radius !== 'any' && userLocation) {
+        bbox = getBoundingBox(userLocation.lat, userLocation.lng, parseFloat(radius));
+        filters.latitude = [
+          { operator: 'gte', value: bbox.minLat },
+          { operator: 'lte', value: bbox.maxLat }
+        ];
+        filters.longitude = [
+          { operator: 'gte', value: bbox.minLng },
+          { operator: 'lte', value: bbox.maxLng }
+        ];
       }
 
       // Date window filter
@@ -94,9 +163,17 @@ export default function Events() {
 
       const data = await Event.filter(filters, {
         orderBy: orderBy,
-        limit: 20
+        limit: 50 // Increased limit to allow for post-filtering
       });
-      setEvents(data || []);
+
+      let results = data || [];
+
+      // Post-filter by precise radius and add distance
+      if (radius && radius !== 'any' && userLocation) {
+        results = filterByRadius(results, userLocation.lat, userLocation.lng, parseFloat(radius));
+      }
+
+      setEvents(results);
     } catch (error) {
       console.error('Error loading events:', error);
     } finally {
@@ -202,14 +279,16 @@ export default function Events() {
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-gray-500" />
                 <Select value={radius} onValueChange={setRadius}>
-                  <SelectTrigger className="w-28">
+                  <SelectTrigger className="w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="any">Any distance</SelectItem>
                     <SelectItem value="1">1 mile</SelectItem>
                     <SelectItem value="2">2 miles</SelectItem>
                     <SelectItem value="5">5 miles</SelectItem>
                     <SelectItem value="10">10 miles</SelectItem>
+                    <SelectItem value="20">20 miles</SelectItem>
                   </SelectContent>
                 </Select>
 
