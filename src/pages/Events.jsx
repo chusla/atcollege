@@ -7,9 +7,10 @@ import EventRowCard from '../components/results/EventRowCard';
 import ViewToggle from '../components/results/ViewToggle';
 import ResultsMapView from '../components/results/ResultsMapView';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Filter, ArrowUpDown } from 'lucide-react';
+import { Calendar, MapPin, Filter, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
 import { addWeeks, addMonths, format } from 'date-fns';
 
 export default function Events() {
@@ -27,6 +28,7 @@ export default function Events() {
   const [sortBy, setSortBy] = useState('name_asc');
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     // If radius is set, we need location
@@ -233,18 +235,30 @@ export default function Events() {
           <p className="text-gray-600">Discover what's happening in and around campus</p>
         </motion.div>
 
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden mb-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </Button>
+        </div>
+
         {/* Filters */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8"
+          initial={false}
+          animate={{ height: 'auto' }}
+          className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8 ${showFilters ? 'block' : 'hidden'} lg:block`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-500" />
+                <Filter className="w-4 h-4 text-gray-500 shrink-0" />
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-full sm:w-36">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -260,9 +274,9 @@ export default function Events() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
+                <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
                 <Select value={timeWindow} onValueChange={setTimeWindow}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full sm:w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -277,9 +291,9 @@ export default function Events() {
               </div>
 
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-500" />
+                <MapPin className="w-4 h-4 text-gray-500 shrink-0" />
                 <Select value={radius} onValueChange={setRadius}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-full sm:w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -295,9 +309,9 @@ export default function Events() {
               </div>
 
               <div className="flex items-center gap-2">
-                <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                <ArrowUpDown className="w-4 h-4 text-gray-500 shrink-0" />
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-full sm:w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -309,7 +323,9 @@ export default function Events() {
                 </Select>
               </div>
             </div>
-            <ViewToggle view={view} onViewChange={setView} />
+            <div className="w-fit">
+              <ViewToggle view={view} onViewChange={setView} />
+            </div>
           </div>
         </motion.div >
 
@@ -323,14 +339,14 @@ export default function Events() {
         {/* Events Grid/List */}
         {
           loading ? (
-            <div className={view === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}>
+            <div className={view === 'grid' ? 'grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}>
               {[...Array(10)].map((_, i) => (
                 <Skeleton key={i} className={view === 'grid' ? 'aspect-[4/5] rounded-2xl' : 'h-28 rounded-xl'} />
               ))}
             </div>
           ) : events.length > 0 ? (
             view === 'grid' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {events.map((event) => (
                   <EventCard
                     key={event.id}
