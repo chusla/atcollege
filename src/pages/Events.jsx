@@ -8,7 +8,8 @@ import ResultsMapView from '../components/results/ResultsMapView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Filter } from 'lucide-react';
+import { Calendar, MapPin, Filter, ArrowUpDown } from 'lucide-react';
+import { addWeeks, addMonths, format } from 'date-fns';
 
 export default function Events() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
@@ -19,13 +20,15 @@ export default function Events() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
-  const [timeWindow, setTimeWindow] = useState(urlParams.get('timeWindow') || '1month');
+  // Changed default to 'any'
+  const [timeWindow, setTimeWindow] = useState(urlParams.get('timeWindow') || 'any');
   const [radius, setRadius] = useState(urlParams.get('radius') || '5');
+  const [sortBy, setSortBy] = useState('name_asc');
 
   useEffect(() => {
     loadEvents();
     loadSavedItems();
-  }, [category]);
+  }, [category, timeWindow, sortBy]);
 
   const loadEvents = async () => {
     setLoading(true);
@@ -34,9 +37,64 @@ export default function Events() {
       if (category && category !== 'all') {
         filters.category = category.toLowerCase();
       }
-      const data = await Event.filter(filters, { 
-        orderBy: { column: 'date', ascending: false }, 
-        limit: 20 
+
+      // Date window filter
+      const today = new Date();
+      let endDate;
+      let dateFilter = [];
+
+      switch (timeWindow) {
+        case 'today':
+          endDate = today;
+          break;
+        case '1week':
+          endDate = addWeeks(today, 1);
+          break;
+        case '2weeks':
+          endDate = addWeeks(today, 2);
+          break;
+        case '3months':
+          endDate = addMonths(today, 3);
+          break;
+        case '1month':
+          endDate = addMonths(today, 1);
+          break;
+        case 'any':
+        default:
+          endDate = null;
+      }
+
+      if (timeWindow === 'any') {
+        dateFilter = [{ operator: 'gte', value: format(today, 'yyyy-MM-dd') }];
+      } else {
+        dateFilter = [
+          { operator: 'gte', value: format(today, 'yyyy-MM-dd') },
+          { operator: 'lte', value: format(endDate, 'yyyy-MM-dd') }
+        ];
+      }
+
+      filters.date = dateFilter;
+
+      let orderBy = { column: 'title', ascending: true }; // Default name_asc
+
+      switch (sortBy) {
+        case 'name_desc':
+          orderBy = { column: 'title', ascending: false };
+          break;
+        case 'date_asc':
+          orderBy = { column: 'date', ascending: true };
+          break;
+        case 'date_desc':
+          orderBy = { column: 'date', ascending: false };
+          break;
+        case 'name_asc':
+        default:
+          orderBy = { column: 'title', ascending: true };
+      }
+
+      const data = await Event.filter(filters, {
+        orderBy: orderBy,
+        limit: 20
       });
       setEvents(data || []);
     } catch (error) {
@@ -131,6 +189,8 @@ export default function Events() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="any">Any Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
                     <SelectItem value="1week">This week</SelectItem>
                     <SelectItem value="2weeks">2 weeks</SelectItem>
                     <SelectItem value="1month">1 month</SelectItem>
@@ -152,61 +212,81 @@ export default function Events() {
                     <SelectItem value="10">10 miles</SelectItem>
                   </SelectContent>
                 </Select>
+
+              </div>
+
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name_asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name_desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="date_asc">Date (Ascending)</SelectItem>
+                    <SelectItem value="date_desc">Date (Descending)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <ViewToggle view={view} onViewChange={setView} />
           </div>
-        </motion.div>
+        </motion.div >
 
         {/* Map View */}
-        {view === 'map' && !loading && events.length > 0 && (
-          <ResultsMapView items={events} itemType="event" />
-        )}
+        {
+          view === 'map' && !loading && events.length > 0 && (
+            <ResultsMapView items={events} itemType="event" />
+          )
+        }
 
         {/* Events Grid/List */}
-        {loading ? (
-          <div className={view === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}>
-            {[...Array(10)].map((_, i) => (
-              <Skeleton key={i} className={view === 'grid' ? 'aspect-[4/5] rounded-2xl' : 'h-28 rounded-xl'} />
-            ))}
-          </div>
-        ) : events.length > 0 ? (
-          view === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {events.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  onSave={handleSave}
-                  isSaved={savedIds.has(event.id)}
-                />
+        {
+          loading ? (
+            <div className={view === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}>
+              {[...Array(10)].map((_, i) => (
+                <Skeleton key={i} className={view === 'grid' ? 'aspect-[4/5] rounded-2xl' : 'h-28 rounded-xl'} />
               ))}
             </div>
+          ) : events.length > 0 ? (
+            view === 'grid' ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {events.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onSave={handleSave}
+                    isSaved={savedIds.has(event.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {events.map((event) => (
+                  <EventRowCard
+                    key={event.id}
+                    event={event}
+                    onSave={handleSave}
+                    isSaved={savedIds.has(event.id)}
+                  />
+                ))}
+              </div>
+            )
           ) : (
-            <div className="space-y-4">
-              {events.map((event) => (
-                <EventRowCard
-                  key={event.id}
-                  event={event}
-                  onSave={handleSave}
-                  isSaved={savedIds.has(event.id)}
-                />
-              ))}
-            </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16"
+            >
+              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">Nothing nearby right now</h3>
+              <p className="text-gray-500">Check back later for new events</p>
+            </motion.div>
           )
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
-            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Nothing nearby right now</h3>
-            <p className="text-gray-500">Check back later for new events</p>
-          </motion.div>
-        )}
-      </div>
-    </div>
+        }
+      </div >
+    </div >
   );
 }
 
