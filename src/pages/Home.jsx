@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Event, Place, Opportunity, InterestGroup, Campus } from '@/api/entities';
@@ -12,6 +12,7 @@ import SearchBar from '../components/home/SearchBar';
 import SearchResults from '../components/home/SearchResults';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
+import { ChevronRight } from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -558,9 +559,18 @@ export default function Home() {
             transition={{ delay: 0.3 }}
             className="mt-10"
           >
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              Interest Groups you have demonstrated interest in:
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">
+                Interest Groups you have demonstrated interest in:
+              </h3>
+              <Link
+                to={createPageUrl('Groups')}
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium text-sm"
+              >
+                View All
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               {loading ? (
                 <div className="flex gap-4 overflow-x-auto">
