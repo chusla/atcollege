@@ -56,7 +56,7 @@ export default function Home() {
       const urlQuery = searchParams.get('search');
       const urlRadius = searchParams.get('radius') || '5';
       const urlCategory = searchParams.get('category') || 'all';
-      
+
       if (urlQuery) {
         console.log('🔍 [URL] Restoring search from URL:', { urlQuery, urlRadius, urlCategory });
         initialSearchDone.current = true;
@@ -74,7 +74,7 @@ export default function Home() {
   const loadData = async () => {
     try {
       const groupsData = await InterestGroup.filter(
-        { status: 'approved' }, 
+        { status: 'approved' },
         { orderBy: { column: 'member_count', ascending: false }, limit: 4 }
       );
       setGroups(groupsData || []);
@@ -116,7 +116,7 @@ export default function Home() {
     setSearchQuery(query);
     setSearchRadius(radius);
     setSearchCategory(category);
-    
+
     // Update URL with search params (enables back button to restore search)
     if (query.trim() || category !== 'all') {
       const params = new URLSearchParams();
@@ -128,7 +128,7 @@ export default function Home() {
       // Clear URL params when search is cleared
       setSearchParams({}, { replace: true });
     }
-    
+
     if (!query.trim() && category === 'all') {
       console.log('🔍 [SEARCH] Empty query and category, clearing results');
       setSearchResults({
@@ -139,7 +139,7 @@ export default function Home() {
     }
 
     setSearchLoading(true);
-    
+
     // Get user's campus location first (needed for both DB and Google searches)
     let campusLocation = null;
     if (user?.selected_campus_id) {
@@ -164,13 +164,13 @@ export default function Home() {
     const processPlacesWithDistance = (places, filterByQuery = true) => {
       let filtered = places;
       if (filterByQuery && query.trim()) {
-        filtered = places.filter(p => 
+        filtered = places.filter(p =>
           p.name?.toLowerCase().includes(searchLower) ||
           p.description?.toLowerCase().includes(searchLower) ||
           p.category?.toLowerCase().includes(searchLower)
         );
       }
-      
+
       if (campusLocation && radiusMiles) {
         filtered = filterByRadius(filtered, campusLocation.lat, campusLocation.lng, radiusMiles);
       } else if (campusLocation) {
@@ -185,15 +185,15 @@ export default function Home() {
           return p;
         }).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
       }
-      
+
       // Filter by category if specified
       if (category !== 'all') {
-        filtered = filtered.filter(p => 
+        filtered = filtered.filter(p =>
           p.category?.toLowerCase() === category.toLowerCase() ||
           p.llm_category?.toLowerCase() === category.toLowerCase()
         );
       }
-      
+
       return filtered;
     };
 
@@ -208,21 +208,21 @@ export default function Home() {
       ]);
 
       // Filter DB results
-      const filteredEvents = (allEvents || []).filter(e => 
+      const filteredEvents = (allEvents || []).filter(e =>
         e.title?.toLowerCase().includes(searchLower) ||
         e.description?.toLowerCase().includes(searchLower) ||
         e.category?.toLowerCase().includes(searchLower)
       );
-      
+
       const filteredDbPlaces = processPlacesWithDistance(allPlaces || []);
-      
-      const filteredOpps = (allOpps || []).filter(o => 
+
+      const filteredOpps = (allOpps || []).filter(o =>
         o.title?.toLowerCase().includes(searchLower) ||
         o.description?.toLowerCase().includes(searchLower) ||
         o.type?.toLowerCase().includes(searchLower)
       );
-      
-      const filteredGroups = (allGroups || []).filter(g => 
+
+      const filteredGroups = (allGroups || []).filter(g =>
         g.name?.toLowerCase().includes(searchLower) ||
         g.description?.toLowerCase().includes(searchLower) ||
         g.category?.toLowerCase().includes(searchLower)
@@ -239,11 +239,11 @@ export default function Home() {
         opportunitiesCount: filteredOpps.length,
         groupsCount: filteredGroups.length
       };
-      
+
       console.log('🔍 [SEARCH] PHASE 1 COMPLETE - Showing', dbResults.placesCount, 'DB places immediately');
       setSearchResults(dbResults);
       setSearchLoading(false);
-      
+
       // ============ PHASE 2: Fetch Google Places in background ============
       if (!campusLocation) {
         console.log('🔍 [SEARCH] No campus location, skipping Google search');
@@ -252,7 +252,7 @@ export default function Home() {
 
       setLoadingMore(true);
       console.log('🔍 [SEARCH] PHASE 2: Fetching Google Places...');
-      
+
       let googlePlacesResults = [];
       try {
         if (category !== 'all' && !query.trim()) {
@@ -278,13 +278,13 @@ export default function Home() {
       const googlePlaceIds = googlePlacesResults.map(p => p.google_place_id).filter(Boolean);
       const existingPlaces = await Place.findByGooglePlaceIds(googlePlaceIds);
       const existingPlacesMap = new Map(existingPlaces.map(p => [p.google_place_id, p]));
-      
+
       // ============ PHASE 3: Show Google results with basic info FIRST ============
       console.log('🔍 [SEARCH] PHASE 3: Showing Google results with skeleton data...');
-      
+
       const newPlacesToCreate = [];
       const quickGooglePlaces = [];
-      
+
       for (const googlePlace of googlePlacesResults) {
         const existing = existingPlacesMap.get(googlePlace.google_place_id);
         if (existing && (existing.status === 'approved' || existing.status === 'pending')) {
@@ -313,7 +313,7 @@ export default function Home() {
       const newGooglePlaces = quickGooglePlaces.filter(p => !existingDbIds.has(p.google_place_id));
       let mergedPlaces = [...filteredDbPlaces, ...newGooglePlaces];
       mergedPlaces = processPlacesWithDistance(mergedPlaces, false);
-      
+
       // Update results with quick Google data
       setSearchResults(prev => ({
         ...prev,
@@ -323,13 +323,13 @@ export default function Home() {
 
       // ============ PHASE 4: Process new places with full details in background ============
       console.log('🔍 [SEARCH] PHASE 4: Enriching', newPlacesToCreate.length, 'new places with details...');
-      
+
       const newPlaceIds = [];
       const BATCH_SIZE = 3; // Process 3 at a time for faster updates
-      
+
       for (let i = 0; i < newPlacesToCreate.length; i += BATCH_SIZE) {
         const batch = newPlacesToCreate.slice(i, i + BATCH_SIZE);
-        
+
         const batchResults = await Promise.all(batch.map(async (googlePlace) => {
           try {
             // Fetch details for photo and description
@@ -345,7 +345,7 @@ export default function Home() {
                 };
               }
             }
-            
+
             // Create in database
             const newPlace = await Place.createFromGooglePlace(detailedPlace, user?.selected_campus_id);
             newPlaceIds.push(newPlace.id);
@@ -368,13 +368,13 @@ export default function Home() {
               }
               return p;
             });
-            
+
             // Also add any new places not in the preview
             const existingIds = new Set(updatedPlaces.map(p => p.google_place_id));
             const newOnes = validResults.filter(r => !existingIds.has(r.google_place_id));
             const allPlaces = [...updatedPlaces, ...newOnes];
             const processed = processPlacesWithDistance(allPlaces, false);
-            
+
             return {
               ...prev,
               places: processed.slice(0, 5),
@@ -395,12 +395,12 @@ export default function Home() {
         setTimeout(async () => {
           const placesNeedingImages = existingPlaces.filter(p => {
             const hasGoogleId = p.google_place_id;
-            const hasPlaceholderImage = !p.image_url || 
-              p.image_url.includes('unsplash') || 
+            const hasPlaceholderImage = !p.image_url ||
+              p.image_url.includes('unsplash') ||
               p.image_url.includes('placeholder');
             return hasGoogleId && hasPlaceholderImage;
           });
-          
+
           for (const place of placesNeedingImages.slice(0, 10)) {
             try {
               await Place.updateImageFromGoogle(place.id, place.google_place_id);
@@ -410,10 +410,10 @@ export default function Home() {
           }
         }, 2000);
       }
-      
+
       console.log('🔍 [SEARCH] All phases complete');
       setLoadingMore(false);
-      
+
     } catch (error) {
       console.error('🔍 [SEARCH] Error:', error);
       setSearchLoading(false);
@@ -458,7 +458,7 @@ export default function Home() {
           transition={{ delay: 0.1 }}
           className="mb-10"
         >
-          <SearchBar 
+          <SearchBar
             onSearch={handleSearch}
             initialQuery={searchQuery}
             initialRadius={searchRadius}
@@ -468,8 +468,8 @@ export default function Home() {
 
         {/* Search Results */}
         {searchQuery && (
-          <SearchResults 
-            results={searchResults} 
+          <SearchResults
+            results={searchResults}
             query={searchQuery}
             loading={searchLoading}
             loadingMore={loadingMore}
@@ -484,10 +484,13 @@ export default function Home() {
               title="Featured Events"
               prompt="Show me the next events in and around my campus"
               categories={[
+                { value: 'all', label: 'All Categories' },
                 { value: 'Sports', label: 'Sports' },
                 { value: 'Shows', label: 'Shows' },
                 { value: 'Talks', label: 'Talks' },
-                { value: 'Social', label: 'Social' }
+                { value: 'Social', label: 'Social' },
+                { value: 'Academic', label: 'Academic' },
+                { value: 'Other', label: 'Other' }
               ]}
               showTimeWindow={true}
               showRadius={true}
@@ -502,11 +505,15 @@ export default function Home() {
               title="Popular Places"
               prompt="Show me the best places in and around my campus"
               categories={[
+                { value: 'all', label: 'All Categories' },
                 { value: 'Bars', label: 'Bars' },
                 { value: 'Restaurants', label: 'Restaurants' },
                 { value: 'Cafes', label: 'Cafes' },
                 { value: 'Housing', label: 'Housing' },
-                { value: 'Study Spots', label: 'Study Spots' }
+                { value: 'Study Spots', label: 'Study Spots' },
+                { value: 'Entertainment', label: 'Entertainment' },
+                { value: 'Shopping', label: 'Shopping' },
+                { value: 'Other', label: 'Other' }
               ]}
               showTimeWindow={false}
               showRadius={true}
@@ -521,9 +528,12 @@ export default function Home() {
               title="Volunteer / Work"
               prompt="Show me opportunities in and around my campus"
               categories={[
-                { value: 'Volunteering', label: 'Volunteering' },
-                { value: 'Internships', label: 'Internships' },
-                { value: 'Part-time work', label: 'Part-time work' }
+                { value: 'all', label: 'All Types' },
+                { value: 'Volunteer', label: 'Volunteering' },
+                { value: 'Internship', label: 'Internships' },
+                { value: 'Work', label: 'Work / Part-time' },
+                { value: 'Research', label: 'Research' },
+                { value: 'Other', label: 'Other' }
               ]}
               showTimeWindow={true}
               showRadius={true}

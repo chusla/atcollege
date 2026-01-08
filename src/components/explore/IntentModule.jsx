@@ -15,7 +15,7 @@ export default function IntentModule({
   previewTitle,
   previewSubtitle
 }) {
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('all');
   const [timeWindow, setTimeWindow] = useState('1month');
   const [radius, setRadius] = useState('5');
 
