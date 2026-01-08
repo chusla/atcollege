@@ -35,7 +35,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
     const [imageError, setImageError] = useState(false);
     const isLoadingDetails = item._isLoading;
     const hasImage = item.image_url && !imageError;
-    
+
     if (isLoadingDetails || !hasImage) {
       return (
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center overflow-hidden">
@@ -47,7 +47,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
         </div>
       );
     }
-    
+
     return (
       <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 relative">
         {!imageLoaded && (
@@ -91,11 +91,11 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
             </Link>
           )}
         </div>
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((item) => {
             const isTemp = item.id?.toString().startsWith('temp-');
             const itemLink = isTemp ? '#' : `${createPageUrl('Detail')}?type=${type}&id=${item.id}`;
-            
+
             return (
               <Link
                 key={item.id}
@@ -162,7 +162,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
           {loadingMore && <span className="text-orange-600 ml-2">• Searching Google Places...</span>}
         </p>
       </div>
-      
+
       <ResultSection
         title="Events"
         icon={Calendar}

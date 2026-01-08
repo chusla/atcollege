@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronRight, MapPin, Calendar } from 'lucide-react';
+import { ChevronRight, MapPin, Calendar, Layers } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function IntentModule({
@@ -33,7 +33,7 @@ export default function IntentModule({
     >
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Preview Card */}
-        <div className="lg:w-48 flex-shrink-0">
+        <div className="hidden lg:block lg:w-48 flex-shrink-0">
           <div className="aspect-[4/5] rounded-xl overflow-hidden relative">
             <img
               src={previewImage}
@@ -54,25 +54,28 @@ export default function IntentModule({
 
           <div className="flex flex-wrap gap-3 mb-4">
             {/* Category */}
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-full sm:w-auto flex items-center gap-2">
+              <Layers className="w-4 h-4 text-gray-500 flex-shrink-0" />
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Time Window */}
             {showTimeWindow && (
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
+              <div className="w-full sm:w-auto flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
                 <Select value={timeWindow} onValueChange={setTimeWindow}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full sm:w-32">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -89,10 +92,10 @@ export default function IntentModule({
 
             {/* Radius */}
             {showRadius && (
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-500" />
+              <div className="w-full sm:w-auto flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-500 flex-shrink-0" />
                 <Select value={radius} onValueChange={setRadius}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-full sm:w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

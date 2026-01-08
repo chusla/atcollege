@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Event, Place, Opportunity, InterestGroup, Campus } from '@/api/entities';
+import { Event, Place, Opportunity, InterestGroup, Campus, SavedItem } from '@/api/entities';
 import { searchPlaces, searchNearby, getPlaceDetails, milesToMeters, categoryToGoogleType } from '@/api/googlePlaces';
 import { filterByRadius, calculateDistance } from '@/utils/geo';
 import { categorizationQueue } from '@/utils/categorizationQueue';
@@ -12,16 +12,17 @@ import SearchBar from '../components/home/SearchBar';
 import SearchResults from '../components/home/SearchResults';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Heart, Users } from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { getCurrentUser, isAuthenticated, isRegistrationComplete, loading: authLoading, profileLoaded } = useAuth();
   const [groups, setGroups] = useState([]);
+  const [savedGroupIds, setSavedGroupIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchRadius, setSearchRadius] = useState('5'); // Store radius for URL persistence
+  const [searchRadius, setSearchRadius] = useState('all'); // Store radius for URL persistence
   const [searchCategory, setSearchCategory] = useState('all'); // Store category for URL persistence
   const [searchResults, setSearchResults] = useState({
     events: [], places: [], opportunities: [], groups: [],
@@ -83,6 +84,47 @@ export default function Home() {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated()) {
+      loadSavedItems();
+    }
+  }, [authLoading, isAuthenticated]);
+
+  const loadSavedItems = async () => {
+    try {
+      const user = getCurrentUser();
+      if (!user?.id) return;
+      const saved = await SavedItem.filter({ user_id: user.id, item_type: 'group' });
+      if (saved) {
+        setSavedGroupIds(new Set(saved.map(s => s.item_id)));
+      }
+    } catch (error) {
+      console.error('Error loading saved items:', error);
+    }
+  };
+
+  const handleSaveGroup = async (group) => {
+    try {
+      const user = getCurrentUser();
+      if (savedGroupIds.has(group.id)) {
+        const saved = await SavedItem.filter({ user_id: user?.id, item_type: 'group', item_id: group.id });
+        if (saved && saved.length > 0) {
+          await SavedItem.delete(saved[0].id);
+          setSavedGroupIds(prev => {
+            const next = new Set(prev);
+            next.delete(group.id);
+            return next;
+          });
+        }
+      } else {
+        await SavedItem.create({ user_id: user?.id, item_type: 'group', item_id: group.id });
+        setSavedGroupIds(prev => new Set([...prev, group.id]));
+      }
+    } catch (error) {
+      console.error('Error saving group:', error);
     }
   };
 
@@ -561,7 +603,8 @@ export default function Home() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900">
-                Interest Groups you have demonstrated interest in:
+                <span className="block min-[600px]:hidden">Interest Groups:</span>
+                <span className="hidden min-[600px]:block">Interest Groups you have demonstrated interest in:</span>
               </h3>
               <Link
                 to={createPageUrl('Groups')}
@@ -579,11 +622,52 @@ export default function Home() {
                   ))}
                 </div>
               ) : groups.length > 0 ? (
-                <div className="flex gap-4 overflow-x-auto pb-2">
-                  {groups.map((group) => (
-                    <GroupCard key={group.id} group={group} />
-                  ))}
-                </div>
+                <>
+                  {/* Mobile List View (< 768px) */}
+                  <div className="flex flex-col gap-3 md:hidden">
+                    {groups.map((group) => (
+                      <div key={group.id} className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm flex items-center gap-3 relative overflow-hidden">
+                        <Link to={`${createPageUrl('Detail')}?type=group&id=${group.id}`} className="absolute inset-0 z-0" />
+
+                        <img
+                          src={group.image_url || 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400'}
+                          alt={group.name}
+                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                        />
+
+                        <div className="flex-1 min-w-0 pointer-events-none">
+                          <h4 className="font-semibold text-gray-900 truncate pr-2">{group.name}</h4>
+                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                            <Users className="w-3 h-3" />
+                            {group.member_count} members
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleSaveGroup(group);
+                          }}
+                          className="relative z-10 p-2 text-gray-400 hover:text-orange-500 transition-colors"
+                        >
+                          <Heart className={`w-5 h-5 ${savedGroupIds.has(group.id) ? 'fill-orange-500 text-orange-500' : ''}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tablet/Desktop View (>= 768px) */}
+                  <div className="hidden md:flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
+                    {groups.map((group) => (
+                      <GroupCard
+                        key={group.id}
+                        group={group}
+                        onSave={handleSaveGroup}
+                        isSaved={savedGroupIds.has(group.id)}
+                      />
+                    ))}
+                  </div>
+                </>
               ) : (
                 <p className="text-gray-500 text-center py-8">
                   Join groups to see them here
