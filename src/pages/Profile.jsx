@@ -11,21 +11,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { UploadFile } from '@/api/integrations';
-import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2, Calendar, Building2, Briefcase, Users } from 'lucide-react';
+import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2, Calendar, Building2, Briefcase, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import DashboardLayout from '../components/layout/DashboardLayout';
 import { format } from 'date-fns';
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { getCurrentUser, updateProfile, signOut, isAuthenticated, loading: authLoading } = useAuth();
+  const { getCurrentUser, updateProfile, signOut, isAuthenticated, loading: authLoading, profileLoaded } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [savedItems, setSavedItems] = useState([]);
-  const [savedEvents, setSavedEvents] = useState([]);
-  const [savedPlaces, setSavedPlaces] = useState([]);
-  const [savedOpportunities, setSavedOpportunities] = useState([]);
-  const [savedGroups, setSavedGroups] = useState([]);
+  const [combinedSavedItems, setCombinedSavedItems] = useState([]);
   const [comments, setComments] = useState([]);
+
+  // Pagination
+  const [savedItemsPage, setSavedItemsPage] = useState(1);
+  const [commentsPage, setCommentsPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
+
   const [campuses, setCampuses] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -34,17 +38,20 @@ export default function Profile() {
   const user = getCurrentUser();
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!isAuthenticated()) {
-        navigate(createPageUrl('Landing'));
-        return;
+    if (!authLoading && isAuthenticated()) {
+      // Sync local state with user profile when it becomes available or changes
+      if (user) {
+        setSelectedCampus(user.selected_campus_id || '');
+        setFirstName(user.first_name || '');
+        setAvatarUrl(user.avatar_url || '');
       }
-      setSelectedCampus(user?.selected_campus_id || '');
-      setFirstName(user?.first_name || '');
-      setAvatarUrl(user?.avatar_url || '');
+
+      // Load other data independent of profile fields (but dependent on user id)
       loadUserData();
+    } else if (!authLoading && !isAuthenticated()) {
+      navigate(createPageUrl('Landing'));
     }
-  }, [authLoading]);
+  }, [authLoading, user?.id, user?.first_name, user?.avatar_url, user?.selected_campus_id]);
 
   const loadUserData = async () => {
     try {
@@ -53,29 +60,42 @@ export default function Profile() {
         Comment.filter({ user_id: user?.id }),
         Campus.list()
       ]);
-      
+
       setSavedItems(saved || []);
       setComments(userComments || []);
       setCampuses(campusesList || []);
-      
+
       // Fetch full data for saved items by type
       if (saved && saved.length > 0) {
         const eventIds = saved.filter(s => s.item_type === 'event').map(s => s.item_id);
         const placeIds = saved.filter(s => s.item_type === 'place').map(s => s.item_id);
         const oppIds = saved.filter(s => s.item_type === 'opportunity').map(s => s.item_id);
         const groupIds = saved.filter(s => s.item_type === 'group').map(s => s.item_id);
-        
+
         const [allEvents, allPlaces, allOpps, allGroups] = await Promise.all([
           eventIds.length > 0 ? Event.list() : Promise.resolve([]),
           placeIds.length > 0 ? Place.list() : Promise.resolve([]),
           oppIds.length > 0 ? Opportunity.list() : Promise.resolve([]),
           groupIds.length > 0 ? InterestGroup.list() : Promise.resolve([])
         ]);
-        
-        setSavedEvents((allEvents || []).filter(e => eventIds.includes(e.id)));
-        setSavedPlaces((allPlaces || []).filter(p => placeIds.includes(p.id)));
-        setSavedOpportunities((allOpps || []).filter(o => oppIds.includes(o.id)));
-        setSavedGroups((allGroups || []).filter(g => groupIds.includes(g.id)));
+
+        const events = (allEvents || []).filter(e => eventIds.includes(e.id)).map(e => ({ ...e, _type: 'event' }));
+        const places = (allPlaces || []).filter(p => placeIds.includes(p.id)).map(p => ({ ...p, _type: 'place' }));
+        const opps = (allOpps || []).filter(o => oppIds.includes(o.id)).map(o => ({ ...o, _type: 'opportunity' }));
+        const groups = (allGroups || []).filter(g => groupIds.includes(g.id)).map(g => ({ ...g, _type: 'group' }));
+
+        // Map saved items in order to preserve sort order of saving
+        const combined = saved.map(s => {
+          if (s.item_type === 'event') return events.find(e => e.id === s.item_id);
+          if (s.item_type === 'place') return places.find(p => p.id === s.item_id);
+          if (s.item_type === 'opportunity') return opps.find(o => o.id === s.item_id);
+          if (s.item_type === 'group') return groups.find(g => g.id === s.item_id);
+          return null;
+        }).filter(Boolean);
+
+        setCombinedSavedItems(combined);
+      } else {
+        setCombinedSavedItems([]);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -87,7 +107,7 @@ export default function Profile() {
   const handleUpdateCampus = async () => {
     try {
       const campus = campuses.find(c => c.id === selectedCampus);
-      await updateProfile({ 
+      await updateProfile({
         selected_campus_id: selectedCampus,
         selected_campus_name: campus?.name || ''
       });
@@ -153,9 +173,147 @@ export default function Profile() {
     ? user.first_name.charAt(0).toUpperCase()
     : 'U';
 
+  // Pagination Calculations
+  const totalSavedPages = Math.ceil(combinedSavedItems.length / ITEMS_PER_PAGE);
+  const paginatedSavedItems = combinedSavedItems.slice(
+    (savedItemsPage - 1) * ITEMS_PER_PAGE,
+    savedItemsPage * ITEMS_PER_PAGE
+  );
+
+  const totalCommentsPages = Math.ceil(comments.length / ITEMS_PER_PAGE);
+  const paginatedComments = comments.slice(
+    (commentsPage - 1) * ITEMS_PER_PAGE,
+    commentsPage * ITEMS_PER_PAGE
+  );
+
+  const PaginationControls = ({ currentPage, totalPages, onPageChange }) => {
+    if (totalPages <= 1) return null;
+    return (
+      <div className="flex items-center justify-center gap-4 mt-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <span className="text-sm text-gray-600">
+          Page {currentPage} of {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+    );
+  };
+
+  const renderSavedItem = (item) => {
+    switch (item._type) {
+      case 'event':
+        return (
+          <Link
+            key={`event-${item.id}`}
+            to={`${createPageUrl('Detail')}?type=event&id=${item.id}`}
+            className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+              <img
+                src={item.image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200'}
+                alt={item.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900 truncate">{item.title}</h4>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Calendar className="w-3 h-3" />
+                <span>{item.date ? format(new Date(item.date), 'MMM d, yyyy') : 'No date'}</span>
+              </div>
+            </div>
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Event</span>
+          </Link>
+        );
+      case 'place':
+        return (
+          <Link
+            key={`place-${item.id}`}
+            to={`${createPageUrl('Detail')}?type=place&id=${item.id}`}
+            className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+              <img
+                src={item.image_url || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200'}
+                alt={item.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900 truncate">{item.name}</h4>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Building2 className="w-3 h-3" />
+                <span className="truncate">{item.address || item.category || 'Place'}</span>
+              </div>
+            </div>
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Place</span>
+          </Link>
+        );
+      case 'opportunity':
+        return (
+          <Link
+            key={`opp-${item.id}`}
+            to={`${createPageUrl('Detail')}?type=opportunity&id=${item.id}`}
+            className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-orange-100 flex items-center justify-center">
+              <Briefcase className="w-8 h-8 text-orange-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900 truncate">{item.title}</h4>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span>{item.organization || item.type || 'Opportunity'}</span>
+              </div>
+            </div>
+            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">Opportunity</span>
+          </Link>
+        );
+      case 'group':
+        return (
+          <Link
+            key={`group-${item.id}`}
+            to={`${createPageUrl('Detail')}?type=group&id=${item.id}`}
+            className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+              <img
+                src={item.image_url || 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200'}
+                alt={item.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900 truncate">{item.name}</h4>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Users className="w-3 h-3" />
+                <span>{item.member_count || 0} members</span>
+              </div>
+            </div>
+            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Group</span>
+          </Link>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 pb-24">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <DashboardLayout active="Profile" user={user}>
+      <div className="max-w-4xl">
         <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
@@ -216,7 +374,7 @@ export default function Profile() {
                     placeholder="Your name"
                     className="max-w-xs"
                   />
-                  <Button 
+                  <Button
                     onClick={handleUpdateProfile}
                     disabled={saving}
                     size="sm"
@@ -244,7 +402,7 @@ export default function Profile() {
                 <p className="text-sm text-gray-600">Comments</p>
               </div>
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-900">{savedGroups.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{combinedSavedItems.filter(i => i._type === 'group').length}</p>
                 <p className="text-sm text-gray-600">Groups</p>
               </div>
             </div>
@@ -267,114 +425,28 @@ export default function Profile() {
               </TabsList>
 
               <TabsContent value="liked">
-                {savedItems.length === 0 ? (
+                {combinedSavedItems.length === 0 ? (
                   <p className="text-center text-gray-500 py-8">No saved items yet</p>
                 ) : (
                   <div className="space-y-3">
-                    {/* Saved Events */}
-                    {savedEvents.map((event) => (
-                      <Link 
-                        key={`event-${event.id}`}
-                        to={`${createPageUrl('Detail')}?type=event&id=${event.id}`}
-                        className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                          <img 
-                            src={event.image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200'} 
-                            alt={event.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 truncate">{event.title}</h4>
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Calendar className="w-3 h-3" />
-                            <span>{event.date ? format(new Date(event.date), 'MMM d, yyyy') : 'No date'}</span>
-                          </div>
-                        </div>
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Event</span>
-                      </Link>
-                    ))}
-                    
-                    {/* Saved Places */}
-                    {savedPlaces.map((place) => (
-                      <Link 
-                        key={`place-${place.id}`}
-                        to={`${createPageUrl('Detail')}?type=place&id=${place.id}`}
-                        className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                          <img 
-                            src={place.image_url || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200'} 
-                            alt={place.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 truncate">{place.name}</h4>
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Building2 className="w-3 h-3" />
-                            <span className="truncate">{place.address || place.category || 'Place'}</span>
-                          </div>
-                        </div>
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Place</span>
-                      </Link>
-                    ))}
-                    
-                    {/* Saved Opportunities */}
-                    {savedOpportunities.map((opp) => (
-                      <Link 
-                        key={`opp-${opp.id}`}
-                        to={`${createPageUrl('Detail')}?type=opportunity&id=${opp.id}`}
-                        className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-orange-100 flex items-center justify-center">
-                          <Briefcase className="w-8 h-8 text-orange-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 truncate">{opp.title}</h4>
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <span>{opp.organization || opp.type || 'Opportunity'}</span>
-                          </div>
-                        </div>
-                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">Opportunity</span>
-                      </Link>
-                    ))}
-                    
-                    {/* Saved Groups */}
-                    {savedGroups.map((group) => (
-                      <Link 
-                        key={`group-${group.id}`}
-                        to={`${createPageUrl('Detail')}?type=group&id=${group.id}`}
-                        className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                          <img 
-                            src={group.image_url || 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200'} 
-                            alt={group.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 truncate">{group.name}</h4>
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Users className="w-3 h-3" />
-                            <span>{group.member_count || 0} members</span>
-                          </div>
-                        </div>
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Group</span>
-                      </Link>
-                    ))}
+                    {paginatedSavedItems.map(item => renderSavedItem(item))}
+
+                    <PaginationControls
+                      currentPage={savedItemsPage}
+                      totalPages={totalSavedPages}
+                      onPageChange={setSavedItemsPage}
+                    />
                   </div>
                 )}
               </TabsContent>
+
 
               <TabsContent value="commented">
                 {comments.length === 0 ? (
                   <p className="text-center text-gray-500 py-8">No comments yet</p>
                 ) : (
                   <div className="space-y-3">
-                    {comments.map((comment) => (
+                    {paginatedComments.map((comment) => (
                       <Link
                         key={comment.id}
                         to={`${createPageUrl('Detail')}?type=${comment.item_type}&id=${comment.item_id}`}
@@ -393,15 +465,21 @@ export default function Profile() {
                         </div>
                       </Link>
                     ))}
+
+                    <PaginationControls
+                      currentPage={commentsPage}
+                      totalPages={totalCommentsPages}
+                      onPageChange={setCommentsPage}
+                    />
                   </div>
                 )}
               </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+            </Tabs >
+          </CardContent >
+        </Card >
 
         {/* College Settings Card */}
-        <Card>
+        < Card >
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <GraduationCap className="w-5 h-5" />
@@ -433,9 +511,9 @@ export default function Profile() {
               Update College
             </Button>
           </CardContent>
-        </Card>
-      </div>
-    </div>
+        </Card >
+      </div >
+    </DashboardLayout >
   );
 }
 

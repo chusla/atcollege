@@ -46,12 +46,13 @@ export default function OpportunityRowCard({ opportunity, onSave, isSaved }) {
                   {opportunity.organization}
                 </div>
               )}
-              {opportunity.deadline && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Deadline: {format(new Date(opportunity.deadline), 'MMM d, yyyy')}
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                {opportunity.deadline
+                  ? `Deadline: ${format(new Date(opportunity.deadline), 'MMM d, yyyy')}`
+                  : 'No deadline'
+                }
+              </div>
             </div>
           </div>
         </div>

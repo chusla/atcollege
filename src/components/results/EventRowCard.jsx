@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { Heart, Calendar, MapPin } from 'lucide-react';
+import { Heart, Calendar, MapPin, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -41,9 +41,17 @@ export default function EventRowCard({ event, onSave, isSaved }) {
             </div>
             <div className="mt-2 space-y-1 text-sm text-gray-500">
               {event.date && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  {format(new Date(event.date), 'MMM d, yyyy')}
+                <div className="flex items-center gap-4 text-gray-500">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    {format(new Date(event.date), 'MMM d, yyyy')}
+                  </div>
+                  {event.time && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      {event.time.slice(0, 5)}
+                    </div>
+                  )}
                 </div>
               )}
               {event.location && (

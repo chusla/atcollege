@@ -7,15 +7,15 @@ function createEntity(tableName) {
     // List all records
     async list(options = {}) {
       let query = supabase.from(tableName).select('*')
-      
+
       if (options.orderBy) {
         query = query.order(options.orderBy.column, { ascending: options.orderBy.ascending ?? true })
       }
-      
+
       if (options.limit) {
         query = query.limit(options.limit)
       }
-      
+
       const { data, error } = await query
       if (error) throw error
       return data
@@ -24,53 +24,69 @@ function createEntity(tableName) {
     // Filter records
     async filter(filters = {}, options = {}) {
       let query = supabase.from(tableName).select('*')
-      
+
+      // Apply filters
       // Apply filters
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
+          const applyCondition = (condition) => {
+            if (typeof condition === 'object' && condition.operator) {
+              // Handle special operators like gte, lte, like, etc.
+              switch (condition.operator) {
+                case 'gte':
+                  query = query.gte(key, condition.value)
+                  break
+                case 'lte':
+                  query = query.lte(key, condition.value)
+                  break
+                case 'gt':
+                  query = query.gt(key, condition.value)
+                  break
+                case 'lt':
+                  query = query.lt(key, condition.value)
+                  break
+                case 'like':
+                  query = query.ilike(key, `%${condition.value}%`)
+                  break
+                case 'contains':
+                  query = query.contains(key, condition.value)
+                  break
+                default:
+                  query = query.eq(key, condition.value)
+              }
+            } else {
+              query = query.eq(key, condition)
+            }
+          }
+
           if (Array.isArray(value)) {
-            query = query.in(key, value)
-          } else if (typeof value === 'object' && value.operator) {
-            // Handle special operators like gte, lte, like, etc.
-            switch (value.operator) {
-              case 'gte':
-                query = query.gte(key, value.value)
-                break
-              case 'lte':
-                query = query.lte(key, value.value)
-                break
-              case 'gt':
-                query = query.gt(key, value.value)
-                break
-              case 'lt':
-                query = query.lt(key, value.value)
-                break
-              case 'like':
-                query = query.ilike(key, `%${value.value}%`)
-                break
-              case 'contains':
-                query = query.contains(key, value.value)
-                break
-              default:
-                query = query.eq(key, value.value)
+            // Check if it's an array of filter objects or a simple array of values
+            const isFilterObjects = value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'operator' in value[0]
+
+            if (isFilterObjects) {
+              // Apply each filter condition
+              value.forEach(condition => applyCondition(condition))
+            } else {
+              // Standard IN query for array of values
+              query = query.in(key, value)
             }
           } else {
-            query = query.eq(key, value)
+            applyCondition(value)
           }
         }
       })
-      
+
       // Apply options
       if (options.orderBy) {
-        query = query.order(options.orderBy.column || options.orderBy, { 
-          ascending: options.orderBy.ascending ?? true 
+        query = query.order(options.orderBy.column || options.orderBy, {
+          ascending: options.orderBy.ascending ?? true
         })
       }
-      
+
       if (options.limit) {
         query = query.limit(options.limit)
       }
-      
+
       const { data, error } = await query
       if (error) throw error
       return data
@@ -83,7 +99,7 @@ function createEntity(tableName) {
         .select('*')
         .eq('id', id)
         .single()
-      
+
       if (error) throw error
       return data
     },
@@ -95,7 +111,7 @@ function createEntity(tableName) {
         .insert(record)
         .select()
         .single()
-      
+
       if (error) throw error
       return data
     },
@@ -108,7 +124,7 @@ function createEntity(tableName) {
         .eq('id', id)
         .select()
         .single()
-      
+
       if (error) throw error
       return data
     },
@@ -119,7 +135,7 @@ function createEntity(tableName) {
         .from(tableName)
         .delete()
         .eq('id', id)
-      
+
       if (error) throw error
       return true
     }
@@ -152,7 +168,7 @@ export const Event = {
         .gte('date', today)
         .order('date', { ascending: true })
         .limit(limit)
-      
+
       if (campusId) query = query.eq('campus_id', campusId)
       const { data, error } = await query
       if (error) {
@@ -172,7 +188,7 @@ export const Event = {
     try {
       const today = new Date().toISOString().split('T')[0]
       const bbox = getBoundingBox(lat, lng, radiusMiles)
-      
+
       const { data, error } = await supabase
         .from('events')
         .select('*')
@@ -184,9 +200,9 @@ export const Event = {
         .lte('longitude', bbox.maxLng)
         .order('date', { ascending: true })
         .limit(limit)
-      
+
       if (error) throw error
-      
+
       // Filter by exact radius and add distance
       return filterByRadius(data || [], lat, lng, radiusMiles)
     } catch (error) {
@@ -206,7 +222,7 @@ export const Place = {
         .in('status', ['approved', 'pending']) // Include pending places from Google imports
         .order('rating', { ascending: false, nullsFirst: false })
         .limit(limit)
-      
+
       if (campusId) query = query.eq('campus_id', campusId)
       const { data, error } = await query
       if (error) {
@@ -225,7 +241,7 @@ export const Place = {
   async listNearby(lat, lng, radiusMiles = 10, limit = 50) {
     try {
       const bbox = getBoundingBox(lat, lng, radiusMiles)
-      
+
       const { data, error } = await supabase
         .from('places')
         .select('*')
@@ -236,9 +252,9 @@ export const Place = {
         .lte('longitude', bbox.maxLng)
         .order('rating', { ascending: false, nullsFirst: false })
         .limit(limit)
-      
+
       if (error) throw error
-      
+
       // Filter by exact radius and add distance
       return filterByRadius(data || [], lat, lng, radiusMiles)
     } catch (error) {
@@ -257,7 +273,7 @@ export const Place = {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      
+
       if (error) {
         // If maybeSingle fails due to multiple rows, try without it
         if (error.code === 'PGRST116') {
@@ -268,7 +284,7 @@ export const Place = {
             .order('imported_at', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false })
             .limit(1)
-          
+
           if (allError) throw allError
           return allData?.[0] || null
         }
@@ -289,7 +305,7 @@ export const Place = {
         .from('places')
         .select('*')
         .in('google_place_id', googlePlaceIds)
-      
+
       if (error) throw error
       return data || []
     } catch (error) {
@@ -301,42 +317,34 @@ export const Place = {
     try {
       // First check if place already exists to avoid 409 conflict errors
       if (googlePlaceData.google_place_id) {
-        const { data: existingPlace, error: checkError } = await supabase
+        const { data: existingPlace } = await supabase
           .from('places')
-          .select('*')
+          .select()
           .eq('google_place_id', googlePlaceData.google_place_id)
-          .maybeSingle(); // Use maybeSingle to avoid 406 error on no results
-        
+          .single();
+
         if (existingPlace) {
           console.log('📝 [PLACE] Place already exists, returning existing:', googlePlaceData.name);
           return existingPlace;
-        }
-        
-        // If there was an error checking (like 406), log it but continue
-        if (checkError) {
-          console.warn('📝 [PLACE] Warning checking existing place:', checkError.message);
         }
       }
 
       // Generate description from Google data or editorial summary
       let description = googlePlaceData.editorials_summary || googlePlaceData.editorial_summary?.overview || null;
-      
+
       // If no description, create one from types and name
       if (!description && googlePlaceData.types) {
         const primaryTypes = googlePlaceData.types
           .filter(t => !t.includes('establishment') && !t.includes('point_of_interest'))
           .slice(0, 3)
           .map(t => t.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-        
+
         if (primaryTypes.length > 0) {
           description = `${googlePlaceData.name} is a ${primaryTypes.join(', ')} located ${googlePlaceData.address ? `at ${googlePlaceData.address.split(',')[0]}` : 'in the area'}.`;
         }
       }
 
       console.log('📝 [PLACE] Creating new place:', googlePlaceData.name);
-
-      // Get current user for created_by field
-      const { data: { user } } = await supabase.auth.getUser();
 
       const placeData = {
         name: googlePlaceData.name,
@@ -356,8 +364,7 @@ export const Place = {
         source: 'google_maps',
         status: 'pending',
         categorization_status: 'pending',
-        imported_at: new Date().toISOString(),
-        created_by: user?.id || null // Set creator for RLS policies
+        imported_at: new Date().toISOString()
       }
 
       if (campusId) {
@@ -367,56 +374,28 @@ export const Place = {
       const { data, error } = await supabase
         .from('places')
         .insert(placeData)
-        .select('*')
+        .select()
         .single()
-      
+
       if (error) {
         // Handle race condition - place was created between check and insert
         if (error.code === '23505' && googlePlaceData.google_place_id) {
           console.log('📝 [PLACE] Race condition: place was just created, fetching:', googlePlaceData.name);
           const { data: existingPlace, error: fetchError } = await supabase
             .from('places')
-            .select('*')
+            .select()
             .eq('google_place_id', googlePlaceData.google_place_id)
-            .maybeSingle();
-          
+            .single();
+
           if (fetchError) throw fetchError;
           return existingPlace;
         }
-        
-        // Handle 403 (RLS policy blocking insert) gracefully - return a virtual place object
-        if (error.code === '42501' || error.message?.includes('403') || error.message?.includes('permission')) {
-          console.warn('📝 [PLACE] Permission denied, returning virtual place for display:', googlePlaceData.name);
-          // Return a virtual place object that can be displayed but isn't persisted
-          return {
-            id: `virtual_${googlePlaceData.google_place_id}`,
-            ...placeData,
-            is_virtual: true // Flag to indicate this isn't in the DB
-          };
-        }
-        
         throw error;
       }
       return data
     } catch (error) {
-      // For any other error, return a virtual place so results still show
-      console.error('Error creating place from Google data:', error);
-      if (googlePlaceData.google_place_id) {
-        return {
-          id: `virtual_${googlePlaceData.google_place_id}`,
-          name: googlePlaceData.name,
-          address: googlePlaceData.address,
-          description: googlePlaceData.editorials_summary || googlePlaceData.editorial_summary?.overview || null,
-          latitude: googlePlaceData.latitude,
-          longitude: googlePlaceData.longitude,
-          rating: googlePlaceData.rating || null,
-          image_url: googlePlaceData.photo_url || null,
-          google_place_id: googlePlaceData.google_place_id,
-          status: 'pending',
-          is_virtual: true
-        };
-      }
-      throw error;
+      console.error('Error creating place from Google data:', error)
+      throw error
     }
   },
   async updateImageFromGoogle(placeId, googlePlaceId) {
@@ -424,7 +403,7 @@ export const Place = {
       // Fetch place details to get photo
       const { getPlaceDetails } = await import('./googlePlaces')
       const details = await getPlaceDetails(googlePlaceId)
-      
+
       if (details?.photo_url) {
         const { data, error } = await supabase
           .from('places')
@@ -432,7 +411,7 @@ export const Place = {
           .eq('id', placeId)
           .select()
           .single()
-        
+
         if (error) throw error
         return data
       }
@@ -450,17 +429,17 @@ export const Place = {
         .select('id, google_place_id, image_url')
         .not('google_place_id', 'is', null)
         .or('image_url.is.null,image_url.ilike.%unsplash%,image_url.ilike.%placeholder%')
-      
+
       if (error) throw error
       if (!places || places.length === 0) {
         console.log('No places need image updates')
         return []
       }
-      
+
       console.log(`Updating images for ${places.length} places`)
       const { getPlaceDetails } = await import('./googlePlaces')
       const results = []
-      
+
       // Process in batches to avoid rate limits
       for (let i = 0; i < places.length; i++) {
         const place = places[i]
@@ -471,7 +450,7 @@ export const Place = {
               .from('places')
               .update({ image_url: details.photo_url })
               .eq('id', place.id)
-            
+
             if (!updateError) {
               results.push({ id: place.id, success: true })
               console.log(`Updated image for place ${place.id}`)
@@ -479,7 +458,7 @@ export const Place = {
               results.push({ id: place.id, success: false, error: updateError })
             }
           }
-          
+
           // Small delay to avoid rate limits
           if (i < places.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 200))
@@ -489,7 +468,7 @@ export const Place = {
           results.push({ id: place.id, success: false, error: error.message })
         }
       }
-      
+
       return results
     } catch (error) {
       console.error('Error updating all place images:', error)
@@ -517,7 +496,7 @@ export const Place = {
         .eq('id', id)
         .select()
         .single()
-      
+
       if (error) throw error
       return data
     } catch (error) {
@@ -539,7 +518,7 @@ export const Opportunity = {
         .or(`deadline.is.null,deadline.gte.${today}`)
         .order('created_at', { ascending: false })
         .limit(limit)
-      
+
       if (campusId) query = query.eq('campus_id', campusId)
       const { data, error } = await query
       if (error) {
@@ -567,7 +546,7 @@ export const InterestGroup = {
         .eq('status', 'approved')
         .order('member_count', { ascending: false })
         .limit(limit)
-      
+
       if (campusId) query = query.eq('campus_id', campusId)
       const { data, error } = await query
       if (error) {
@@ -593,7 +572,7 @@ export const SavedItem = {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-    
+
     if (itemType) query = query.eq('item_type', itemType)
     const { data, error } = await query
     if (error) throw error
@@ -617,7 +596,7 @@ export const SavedItem = {
       .eq('item_type', itemType)
       .eq('item_id', itemId)
       .maybeSingle()
-    
+
     if (existing) {
       await supabase.from('saved_items').delete().eq('id', existing.id)
       return false
@@ -667,21 +646,21 @@ export const User = {
   // Get current user with profile
   async me() {
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) return null
-    
+
     // Fetch profile data
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single()
-    
+
     if (error) {
       console.error('Error fetching profile:', error)
       return { ...user, profile: null }
     }
-    
+
     return {
       id: user.id,
       email: user.email,
@@ -692,16 +671,16 @@ export const User = {
   // Update current user's profile
   async updateMe(updates) {
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) throw new Error('Not authenticated')
-    
+
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', user.id)
       .select()
       .single()
-    
+
     if (error) throw error
     return data
   },
@@ -714,7 +693,7 @@ export const User = {
         redirectTo: window.location.origin
       }
     })
-    
+
     if (error) throw error
     return data
   },
@@ -725,7 +704,7 @@ export const User = {
       email,
       password
     })
-    
+
     if (error) throw error
     return data
   },
@@ -736,7 +715,7 @@ export const User = {
       email,
       password
     })
-    
+
     if (error) throw error
     return data
   },
@@ -753,88 +732,6 @@ export const User = {
   }
 }
 
-// Search Query - tracks search history for analytics
-export const SearchQuery = {
-  ...createEntity('search_queries'),
-  
-  async create(searchData) {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const record = {
-        user_id: user?.id || null,
-        campus_id: searchData.campusId || null,
-        query_text: searchData.query || '',
-        category: searchData.category || 'all',
-        radius_miles: parseFloat(searchData.radius) || 5,
-        latitude: searchData.latitude || null,
-        longitude: searchData.longitude || null,
-        results_count: searchData.resultsCount || 0,
-        place_ids: searchData.placeIds || [],
-        search_source: searchData.source || 'home',
-        is_completed: searchData.isCompleted || false
-      };
-      
-      const { data, error } = await supabase
-        .from('search_queries')
-        .insert(record)
-        .select()
-        .single();
-      
-      if (error) {
-        // Table might not exist yet - log but don't throw
-        console.warn('📊 [SEARCH QUERY] Could not save:', error.message);
-        return null;
-      }
-      
-      console.log('📊 [SEARCH QUERY] Saved:', record.query_text);
-      return data;
-    } catch (error) {
-      console.warn('📊 [SEARCH QUERY] Error saving:', error);
-      return null;
-    }
-  },
-  
-  async markCompleted(id, resultsCount, placeIds) {
-    try {
-      const { data, error } = await supabase
-        .from('search_queries')
-        .update({ 
-          is_completed: true, 
-          results_count: resultsCount,
-          place_ids: placeIds,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.warn('📊 [SEARCH QUERY] Error updating:', error);
-      return null;
-    }
-  },
-  
-  async getRecentByUser(userId, limit = 10) {
-    try {
-      const { data, error } = await supabase
-        .from('search_queries')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.warn('📊 [SEARCH QUERY] Error fetching:', error);
-      return [];
-    }
-  }
-}
-
 export default {
   Campus,
   Event,
@@ -843,7 +740,6 @@ export default {
   InterestGroup,
   SavedItem,
   Comment,
-  User,
-  SearchQuery
+  User
 }
 

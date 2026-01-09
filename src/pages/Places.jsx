@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { useSearch } from '@/contexts/SearchContext';
 import { Place, SavedItem, Campus } from '@/api/entities';
-import { searchPlaces, getPlaceDetails } from '@/api/googlePlaces';
 import { filterByRadius } from '@/utils/geo';
 import PlaceCard from '../components/cards/PlaceCard';
 import PlaceRowCard from '../components/results/PlaceRowCard';
@@ -12,237 +8,183 @@ import ViewToggle from '../components/results/ViewToggle';
 import ResultsMapView from '../components/results/ResultsMapView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { MapPin, Filter, Building2, ArrowLeft } from 'lucide-react';
-
-/**
- * Calculate relevance score for a place based on search query
- */
-function calculateRelevanceScore(place, searchQuery) {
-  if (!searchQuery || !searchQuery.trim()) return 100;
-  
-  const query = searchQuery.toLowerCase().trim();
-  const queryWords = query.split(/\s+/);
-  let score = 0;
-  
-  const name = (place.name || '').toLowerCase();
-  if (name.includes(query)) {
-    score += 50;
-  } else {
-    queryWords.forEach(word => {
-      if (word.length > 2 && name.includes(word)) score += 20;
-    });
-  }
-  
-  const types = place.types || place.google_place_data?.types || [];
-  types.forEach(type => {
-    const typeLower = type.toLowerCase().replace(/_/g, ' ');
-    if (typeLower.includes(query)) score += 30;
-    queryWords.forEach(word => {
-      if (word.length > 2 && typeLower.includes(word)) score += 15;
-    });
-  });
-  
-  const primaryType = (place.primaryType || place.google_place_data?.primaryType || '').toLowerCase().replace(/_/g, ' ');
-  if (primaryType.includes(query)) score += 25;
-  
-  const category = (place.category || '').toLowerCase();
-  if (category.includes(query)) score += 20;
-  
-  const description = (place.description || place.editorials_summary || '').toLowerCase();
-  if (description.includes(query)) score += 10;
-  
-  return Math.min(score, 100);
-}
-
-function filterByRelevance(places, searchQuery, minScore = 15) {
-  if (!searchQuery || !searchQuery.trim()) return places;
-  
-  return places
-    .map(place => ({ ...place, _relevanceScore: calculateRelevanceScore(place, searchQuery) }))
-    .filter(place => place._relevanceScore >= minScore)
-    .sort((a, b) => b._relevanceScore - a._relevanceScore);
-}
+import { MapPin, Filter, Building2, Star, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
 
 export default function Places() {
-  const { isAuthenticated, getCurrentUser, signInWithGoogle, profileLoaded } = useAuth();
-  const { getCachedPlaces } = useSearch();
-  const navigate = useNavigate();
+  const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
   const [view, setView] = useState('grid');
-  const [noCampus, setNoCampus] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
-  const [radius, setRadius] = useState(urlParams.get('radius') || '5');
-  const [searchQuery, setSearchQuery] = useState(urlParams.get('search') || '');
+  const [radius, setRadius] = useState(urlParams.get('radius') || 'any');
+  const [ratingFilter, setRatingFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('highest');
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
 
   useEffect(() => {
-    // Wait for profile to load before checking campus
-    if (!profileLoaded) return;
-    
-    const user = getCurrentUser();
-    if (!user?.selected_campus_id) {
-      setNoCampus(true);
-      setLoading(false);
-      return;
+    // If radius is set, we need location
+    if (radius && radius !== 'any') {
+      getUserLocation();
     }
-    
-    setNoCampus(false);
+  }, [radius]);
+
+  useEffect(() => {
     loadPlaces();
     loadSavedItems();
-  }, [category, radius, searchQuery, profileLoaded]);
+  }, [category, radius, userLocation, ratingFilter, sortBy]);
 
-  const [campusCenter, setCampusCenter] = useState(null);
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      // Fallback to campus location if geolocation not supported
+      fetchCampusLocation();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationError(null);
+      },
+      (error) => {
+        console.warn('Geolocation denied or failed, falling back to campus location:', error);
+        fetchCampusLocation();
+      }
+    );
+  };
+
+  const fetchCampusLocation = async () => {
+    try {
+      if (isAuthenticated()) {
+        const user = getCurrentUser();
+        if (user?.selected_campus_id) {
+          const campus = await Campus.get(user.selected_campus_id);
+          if (campus && campus.latitude && campus.longitude) {
+            setUserLocation({
+              lat: parseFloat(campus.latitude),
+              lng: parseFloat(campus.longitude)
+            });
+            setLocationError(null); // Clear error since we have a fallback
+            return;
+          }
+        }
+      }
+      setLocationError('Please enable location services to filter by distance');
+    } catch (error) {
+      console.error('Error fetching campus location:', error);
+      setLocationError('Unable to retrieve location');
+    }
+  };
 
   const loadPlaces = async () => {
     setLoading(true);
     try {
-      // Get user's campus location (user must have a campus selected to reach this point)
-      const user = getCurrentUser();
-      let campusLocation = null;
-      
-      if (user?.selected_campus_id) {
-        try {
-          const campus = await Campus.get(user.selected_campus_id);
-          if (campus?.latitude && campus?.longitude) {
-            campusLocation = {
-              lat: parseFloat(campus.latitude),
-              lng: parseFloat(campus.longitude)
-            };
-          }
-        } catch (error) {
-          console.error('Error fetching campus:', error);
-        }
-      }
-      
-      // If still no location (shouldn't happen), return early
-      if (!campusLocation) {
-        console.warn('No campus location available');
-        setNoCampus(true);
-        setLoading(false);
-        return;
-      }
-      
-      setCampusCenter(campusLocation);
-
-      // Include both approved and pending statuses in the filter
-      const filters = {
-        status: ['approved', 'pending'] // Array triggers .in() query
-      };
+      const filters = {};
       if (category && category !== 'all') {
-        filters.category = category.toLowerCase();
+        // Map filter values to database category values
+        const categoryMap = {
+          'restaurant': 'Restaurants',
+          'restaurants': 'Restaurants',
+          'cafe': 'Cafes',
+          'cafes': 'Cafes',
+          'bar': 'Bars',
+          'bars': 'Bars',
+          'gym': 'Other', // Gym maps to Other in schema
+          'library': 'Study Spots', // Library maps to Study Spots
+          'study_spot': 'Study Spots',
+          'study_spots': 'Study Spots',
+          'housing': 'Housing',
+          'entertainment': 'Entertainment',
+          'shopping': 'Shopping',
+          'other': 'Other'
+        };
+        const dbCategory = categoryMap[category.toLowerCase()] || category;
+        filters.category = dbCategory;
       }
-      
-      let data = await Place.filter(filters, { 
-        orderBy: { column: 'rating', ascending: false }, 
-        limit: 200 // Get more to filter by search and radius
+
+      // Use raw query to include both approved and pending statuses
+      let data = await Place.filter(filters, {
+        limit: 100 // Get more to filter by radius
       });
-      
-      // Filter by search query if provided
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        
-        // First, check if we have cached results from the Home page search
-        const cachedPlaces = getCachedPlaces(searchQuery);
-        
-        if (cachedPlaces.length > 0) {
-          console.log('📦 [PLACES] Using cached places:', cachedPlaces.length);
-          // Merge cached places with DB results (cached takes priority for fresh data)
-          const dbIds = new Set(data.map(p => p.google_place_id || p.id).filter(Boolean));
-          const newFromCache = cachedPlaces.filter(p => {
-            const id = p.google_place_id || p.id;
-            return !dbIds.has(id);
-          });
-          data = [...data, ...newFromCache];
-        } else {
-          // No cache - filter DB results by text match
-          data = (data || []).filter(place => {
-            // Check basic fields
-            if (place.name?.toLowerCase().includes(query)) return true;
-            if (place.description?.toLowerCase().includes(query)) return true;
-            if (place.address?.toLowerCase().includes(query)) return true;
-            if (place.category?.toLowerCase().includes(query)) return true;
-            
-            // Check Google place data for types
-            if (place.google_place_data) {
-              const gpd = place.google_place_data;
-              if (gpd.types?.some(t => t.toLowerCase().includes(query))) return true;
-              if (gpd.primaryType?.toLowerCase().includes(query)) return true;
-              if (gpd.editorials_summary?.toLowerCase().includes(query)) return true;
-            }
-            
-            return false;
-          });
 
-          // Only search Google if we have NO cached results (fallback)
-          if (data.length < 5) {
-            try {
-              console.log('📦 [PLACES] No cache, searching Google...');
-              const radiusMiles = parseFloat(radius) || 5;
-              const googleResults = await searchPlaces({
-                query: searchQuery,
-                location: campusLocation,
-                radius: radiusMiles * 1609.34
-              });
+      // Filter to approved or pending status (exclude rejected/spam)
+      data = (data || []).filter(p => ['approved', 'pending'].includes(p.status));
 
-              if (googleResults?.length > 0) {
-                const existingIds = new Set(data.map(p => p.google_place_id).filter(Boolean));
-                const newGooglePlaces = googleResults.filter(gp => !existingIds.has(gp.google_place_id));
-                
-                for (const gp of newGooglePlaces.slice(0, 15)) {
-                  try {
-                    const existing = await Place.filter({ google_place_id: gp.google_place_id });
-                    if (existing?.length > 0) {
-                      data.push(existing[0]);
-                    } else {
-                      const newPlace = await Place.createFromGooglePlace(gp, user?.selected_campus_id);
-                      if (newPlace) data.push(newPlace);
-                    }
-                  } catch (err) {
-                    console.warn('Error creating place:', gp.name, err);
-                  }
-                }
-              }
-            } catch (err) {
-              console.warn('Google search failed:', err);
-            }
+      // --- Client-side Filtering ---
+
+      // 1. Rating Filter
+      if (ratingFilter !== 'all') {
+        data = data.filter(p => {
+          const r = p.rating || 0;
+          switch (ratingFilter) {
+            case 'no_rating':
+              return r === 0;
+            case '5':
+              return r >= 4.8; // Approximate for 5.0
+            case '4':
+              return r >= 4.0;
+            case 'under_3':
+              return r > 0 && r <= 3.0;
+            default:
+              return true;
           }
-        }
+        });
       }
 
-      // Always filter by radius to only show nearby places
-      if (radius !== 'all' && data.length > 0) {
+      // 2. Radius Filter
+      if (userLocation && radius !== 'any' && radius !== 'all') {
         data = filterByRadius(
-          data || [],
-          campusLocation.lat,
-          campusLocation.lng,
+          data,
+          userLocation.lat,
+          userLocation.lng,
           parseFloat(radius)
         );
       }
 
-      // Remove duplicates (by google_place_id or id)
-      const seen = new Set();
-      data = data.filter(place => {
-        const key = place.google_place_id || place.id;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
+      // --- Client-side Sorting ---
+      data.sort((a, b) => {
+        const rA = a.rating || 0;
+        const rB = b.rating || 0;
+
+        switch (sortBy) {
+          case 'highest':
+            // High -> Low, then No rating (0)
+            return rB - rA;
+
+          case 'lowest':
+            // Low (but > 0) -> High, then No rating
+            // Treat 0 as Infinity for sorting so it goes to end
+            const valA = rA === 0 ? 999 : rA;
+            const valB = rB === 0 ? 999 : rB;
+            return valA - valB;
+
+          case 'no_rating':
+            // No rating (0) first, then High -> Low
+            const isNoRatingA = rA === 0 ? 1 : 0;
+            const isNoRatingB = rB === 0 ? 1 : 0;
+            if (isNoRatingA !== isNoRatingB) {
+              return isNoRatingB - isNoRatingA; // 1 (true) first
+            }
+            // If both have rating or both no rating, sort desc
+            return rB - rA;
+
+          default:
+            return rB - rA;
+        }
       });
 
-      // Apply relevance filtering if there's a search query
-      // Use low threshold (0) to trust Google's relevance ranking while still sorting by our score
-      if (searchQuery) {
-        data = filterByRelevance(data, searchQuery, 0);
-        console.log(`🔍 [PLACES] Relevance filter applied: ${data.length} relevant results`);
-      }
-
-      // Limit results after filtering
-      setPlaces((data || []).slice(0, 50));
+      // Limit results
+      setPlaces(data.slice(0, 50));
     } catch (error) {
       console.error('Error loading places:', error);
     } finally {
@@ -289,35 +231,6 @@ export default function Places() {
     }
   };
 
-  // Show prompt to select campus if user doesn't have one
-  if (noCampus) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center"
-          >
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-8 h-8 text-orange-500" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Select Your Campus</h2>
-            <p className="text-gray-600 mb-6">
-              To see places near you, please select your college or university first.
-            </p>
-            <Button 
-              onClick={() => navigate(createPageUrl('Profile'))}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-8"
-            >
-              Go to Profile Settings
-            </Button>
-          </motion.div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -327,90 +240,122 @@ export default function Places() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          {searchQuery && (
-            <Link 
-              to={`${createPageUrl('Home')}?search=${encodeURIComponent(searchQuery)}&radius=${radius}&category=${category}`}
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 group"
-            >
-              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-              <span>Back to search</span>
-            </Link>
-          )}
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {searchQuery ? `Places: "${searchQuery}"` : 'Places'}
-          </h1>
-          <p className="text-gray-600">
-            {searchQuery 
-              ? `Showing results for "${searchQuery}" near campus`
-              : 'Find the best spots in and around campus'}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Places</h1>
+          <p className="text-gray-600">Find the best spots in and around campus</p>
         </motion.div>
+
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden mb-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </Button>
+        </div>
 
         {/* Filters */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8"
+          initial={false}
+          animate={{ height: 'auto' }}
+          className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8 ${showFilters ? 'block' : 'hidden'} lg:block`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-4">
+              {/* Category Filter */}
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-500" />
+                <Filter className="w-4 h-4 text-gray-500 shrink-0" />
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-full lg:w-40">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="restaurant">Restaurants</SelectItem>
-                    <SelectItem value="cafe">Cafes</SelectItem>
-                    <SelectItem value="bar">Bars</SelectItem>
-                    <SelectItem value="gym">Gym</SelectItem>
-                    <SelectItem value="library">Library</SelectItem>
-                    <SelectItem value="study_spot">Study Spots</SelectItem>
+                    <SelectItem value="restaurants">Restaurants</SelectItem>
+                    <SelectItem value="cafes">Cafes</SelectItem>
+                    <SelectItem value="bars">Bars</SelectItem>
+                    <SelectItem value="study_spots">Study Spots</SelectItem>
+                    <SelectItem value="entertainment">Entertainment</SelectItem>
+                    <SelectItem value="shopping">Shopping</SelectItem>
+                    <SelectItem value="housing">Housing</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Radius Filter */}
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-500" />
+                <MapPin className="w-4 h-4 text-gray-500 shrink-0" />
                 <Select value={radius} onValueChange={setRadius}>
-                  <SelectTrigger className="w-28">
+                  <SelectTrigger className="w-full lg:w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="any">Any distance</SelectItem>
                     <SelectItem value="1">1 mile</SelectItem>
                     <SelectItem value="2">2 miles</SelectItem>
                     <SelectItem value="5">5 miles</SelectItem>
                     <SelectItem value="10">10 miles</SelectItem>
+                    <SelectItem value="20">20 miles</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Rating Filter */}
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-gray-500 shrink-0" />
+                <Select value={ratingFilter} onValueChange={setRatingFilter}>
+                  <SelectTrigger className="w-full lg:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Ratings</SelectItem>
+                    <SelectItem value="5">5.0</SelectItem>
+                    <SelectItem value="4">4.0+</SelectItem>
+                    <SelectItem value="under_3">&lt; 3.0</SelectItem>
+                    <SelectItem value="no_rating">No rating yet</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort By */}
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-4 h-4 text-gray-500 shrink-0" />
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-full lg:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="highest">Highest Rating</SelectItem>
+                    <SelectItem value="lowest">Lowest Rating</SelectItem>
+                    <SelectItem value="no_rating">No Rating</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <ViewToggle view={view} onViewChange={setView} />
+            <div className="w-fit">
+              <ViewToggle view={view} onViewChange={setView} />
+            </div>
           </div>
         </motion.div>
 
         {/* Map View */}
         {view === 'map' && !loading && places.length > 0 && (
-          <ResultsMapView 
-            items={places} 
-            itemType="place" 
-            center={campusCenter || { lat: 42.3770, lng: -71.1167 }} // Default to Harvard if no campus
-            radiusMiles={radius}
-          />
+          <ResultsMapView items={places} itemType="place" />
         )}
 
         {/* Places Grid */}
         {loading ? (
-          <div className={view === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}>
+          <div className={view === 'grid' ? 'grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}>
             {[...Array(10)].map((_, i) => (
               <Skeleton key={i} className={view === 'grid' ? 'aspect-[4/5] rounded-2xl' : 'h-28 rounded-xl'} />
             ))}
           </div>
         ) : places.length > 0 ? (
           view === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {places.map((place) => (
                 <PlaceCard
                   key={place.id}

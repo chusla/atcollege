@@ -12,8 +12,8 @@ export default function FeaturedSection({ title, viewAllLink, children }) {
       viewport={{ once: true }}
       className="mb-12"
     >
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
         {viewAllLink && (
           <Link
             to={createPageUrl(viewAllLink)}

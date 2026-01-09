@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Heart, Star, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { mapLLMCategoryToSchema } from '@/api/llmCategorization';
 
 export default function PlaceRowCard({ place, onSave, isSaved }) {
   const handleSaveClick = (e) => {
@@ -10,6 +11,9 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
     e.stopPropagation();
     onSave?.(place);
   };
+
+  // Get display category: use category if available, otherwise normalize llm_category, fallback to 'Other'
+  const displayCategory = place.category || (place.llm_category ? mapLLMCategoryToSchema(place.llm_category) : 'Other');
 
   return (
     <Link
@@ -27,8 +31,8 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h3 className="font-semibold text-gray-900 mb-1">{place.name}</h3>
-                {place.category && (
-                  <Badge className="bg-green-100 text-green-700 text-xs">{place.category}</Badge>
+                {displayCategory && (
+                  <Badge className="bg-green-100 text-green-700 text-xs">{displayCategory}</Badge>
                 )}
               </div>
               <button
@@ -42,7 +46,10 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
               {place.rating && (
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  {place.rating.toFixed(1)}
+                  <span className="font-medium text-gray-900">{place.rating.toFixed(1)}</span>
+                  {place.user_ratings_total > 0 && (
+                    <span className="text-gray-400">({place.user_ratings_total})</span>
+                  )}
                 </div>
               )}
               {place.address && (

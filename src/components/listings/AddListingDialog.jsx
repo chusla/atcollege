@@ -18,7 +18,8 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
-  
+  const [previewUrl, setPreviewUrl] = useState('');
+
   const [formData, setFormData] = useState({
     title: '',
     name: '',
@@ -41,6 +42,13 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Create local preview immediately
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    const localUrl = URL.createObjectURL(file);
+    setPreviewUrl(localUrl);
+
     setUploading(true);
     try {
       const { url } = await UploadFile({ file, bucket: 'uploads' });
@@ -48,6 +56,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
     } catch (error) {
       console.error('Error uploading image:', error);
       alert('Failed to upload image');
+      // If upload fails, we keep the preview but the submission will lack the real URL
     } finally {
       setUploading(false);
     }
@@ -116,6 +125,10 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
         latitude: null, longitude: null
       });
       setImageUrl('');
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl('');
+      }
       onSuccess?.();
     } catch (error) {
       console.error('Error creating listing:', error);
@@ -157,8 +170,8 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             <div>
               <Label>Image</Label>
               <div className="mt-2 border-2 border-dashed border-gray-200 rounded-lg p-4 text-center relative">
-                {imageUrl ? (
-                  <img src={imageUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
+                {previewUrl || imageUrl ? (
+                  <img src={previewUrl || imageUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
                 ) : (
                   <div className="py-4">
                     <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -187,11 +200,12 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
                 <Select value={formData.category} onValueChange={(v) => updateField('category', v)}>
                   <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="academic">Academic</SelectItem>
-                    <SelectItem value="social">Social</SelectItem>
-                    <SelectItem value="sports">Sports</SelectItem>
-                    <SelectItem value="cultural">Cultural</SelectItem>
-                    <SelectItem value="career">Career</SelectItem>
+                    <SelectItem value="Academic">Academic</SelectItem>
+                    <SelectItem value="Social">Social</SelectItem>
+                    <SelectItem value="Sports">Sports</SelectItem>
+                    <SelectItem value="Shows">Shows</SelectItem>
+                    <SelectItem value="Talks">Talks</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -229,12 +243,12 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
                 <Select value={formData.category} onValueChange={(v) => updateField('category', v)}>
                   <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="restaurant">Restaurant</SelectItem>
-                    <SelectItem value="cafe">Cafe</SelectItem>
-                    <SelectItem value="bar">Bar</SelectItem>
-                    <SelectItem value="gym">Gym</SelectItem>
-                    <SelectItem value="library">Library</SelectItem>
-                    <SelectItem value="study_spot">Study Spot</SelectItem>
+                    <SelectItem value="Restaurants">Restaurant</SelectItem>
+                    <SelectItem value="Cafes">Cafe</SelectItem>
+                    <SelectItem value="Bars">Bar</SelectItem>
+                    <SelectItem value="Entertainment">Entertainment</SelectItem>
+                    <SelectItem value="Study Spots">Study Spot</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -264,10 +278,11 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
                 <Select value={formData.type} onValueChange={(v) => updateField('type', v)}>
                   <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="job">Job</SelectItem>
-                    <SelectItem value="internship">Internship</SelectItem>
-                    <SelectItem value="volunteer">Volunteer</SelectItem>
-                    <SelectItem value="research">Research</SelectItem>
+                    <SelectItem value="Work">Job</SelectItem>
+                    <SelectItem value="Internship">Internship</SelectItem>
+                    <SelectItem value="Volunteer">Volunteer</SelectItem>
+                    <SelectItem value="Research">Research</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -299,7 +314,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
               <Textarea id="description" value={formData.description} onChange={(e) => updateField('description', e.target.value)} rows={3} />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || uploading}>
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

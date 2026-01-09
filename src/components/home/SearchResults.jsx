@@ -1,122 +1,11 @@
-import React, { useState, memo, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Building2, Briefcase, Users, ChevronRight, Loader2 } from 'lucide-react';
 
-// Memoized image component - defined outside to prevent recreation
-const PlaceImage = memo(function PlaceImage({ imageUrl, name, isLoading }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const imgRef = useRef(null);
-  
-  // Check if image is already cached/loaded
-  useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current?.naturalHeight > 0) {
-      setImageLoaded(true);
-    }
-  }, []);
-  
-  const hasImage = imageUrl && !imageError;
-  
-  if (isLoading || !hasImage) {
-    return (
-      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0">
-        {isLoading ? (
-          <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
-        ) : (
-          <Building2 className="w-5 h-5 text-gray-400" />
-        )}
-      </div>
-    );
-  }
-  
-  return (
-    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-      <img
-        ref={imgRef}
-        src={imageUrl}
-        alt={name}
-        className="w-full h-full object-cover"
-        style={{ opacity: imageLoaded ? 1 : 0, transition: 'opacity 0.2s' }}
-        onLoad={() => setImageLoaded(true)}
-        onError={() => setImageError(true)}
-        loading="lazy"
-      />
-      {!imageLoaded && (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
-      )}
-    </div>
-  );
-}, (prevProps, nextProps) => {
-  // Only re-render if these props actually changed
-  return prevProps.imageUrl === nextProps.imageUrl && 
-         prevProps.name === nextProps.name && 
-         prevProps.isLoading === nextProps.isLoading;
-});
-
-// Memoized result item to prevent re-renders
-const ResultItem = memo(function ResultItem({ item, type, isPlaces }) {
-  const isTemp = item.id?.toString().startsWith('temp-');
-  const itemLink = isTemp ? '#' : `${createPageUrl('Detail')}?type=${type}&id=${item.id}`;
-  
-  return (
-    <Link
-      to={itemLink}
-      className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isTemp ? 'cursor-default' : 'hover:bg-gray-50'}`}
-      onClick={isTemp ? (e) => e.preventDefault() : undefined}
-    >
-      {isPlaces ? (
-        <PlaceImage 
-          imageUrl={item.image_url} 
-          name={item.title || item.name} 
-          isLoading={item._isLoading}
-        />
-      ) : (
-        <img
-          src={item.image_url || 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=100'}
-          alt={item.title || item.name}
-          className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-          loading="lazy"
-        />
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h4 className="font-medium text-gray-900 truncate">{item.title || item.name}</h4>
-          {item.status === 'pending' && (
-            <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200 flex-shrink-0">
-              New
-            </Badge>
-          )}
-          {item._isLoading && (
-            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200 flex-shrink-0">
-              <Loader2 className="w-2 h-2 animate-spin mr-1" />
-              Loading
-            </Badge>
-          )}
-        </div>
-        {item._isLoading ? (
-          <Skeleton className="h-4 w-3/4 mt-1" />
-        ) : (
-          <p className="text-sm text-gray-500 truncate">{item.description || item.category || item.type || item.address}</p>
-        )}
-      </div>
-    </Link>
-  );
-}, (prevProps, nextProps) => {
-  // Custom comparison - only re-render if important props changed
-  const prev = prevProps.item;
-  const next = nextProps.item;
-  return prev.id === next.id && 
-         prev.image_url === next.image_url && 
-         prev.name === next.name &&
-         prev.title === next.title &&
-         prev._isLoading === next._isLoading &&
-         prev.status === next.status;
-});
-
-export default function SearchResults({ results, query, radius, category, loading, loadingMore }) {
+export default function SearchResults({ results, query, loading, loadingMore }) {
   if (loading) {
     return (
       <div className="space-y-6 mb-10">
@@ -134,11 +23,46 @@ export default function SearchResults({ results, query, radius, category, loadin
 
   if (totalResults === 0 && !loadingMore) {
     return (
-      <div className="text-center py-12 mb-10">
+      <div className="text-center py-12 mb-10 animate-fade-in">
         <p className="text-gray-500">No results found for "{query}"</p>
       </div>
     );
   }
+
+  // Placeholder image component with loading state
+  const PlaceImage = ({ item }) => {
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [imageError, setImageError] = useState(false);
+    const isLoadingDetails = item._isLoading;
+    const hasImage = item.image_url && !imageError;
+
+    if (isLoadingDetails || !hasImage) {
+      return (
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center overflow-hidden">
+          {isLoadingDetails ? (
+            <div className="animate-pulse w-full h-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer" />
+          ) : (
+            <Building2 className="w-5 h-5 text-gray-400" />
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 relative">
+        {!imageLoaded && (
+          <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200" />
+        )}
+        <img
+          src={item.image_url}
+          alt={item.title || item.name}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageError(true)}
+        />
+      </div>
+    );
+  };
 
   const ResultSection = ({ title, icon: Icon, items, type, count, linkPage, isPlaces }) => {
     if (items.length === 0 && !loadingMore) return null;
@@ -157,30 +81,66 @@ export default function SearchResults({ results, query, radius, category, loadin
               </span>
             )}
           </div>
-          {count > 0 && (
+          {count > 5 && (
             <Link
-              to={`${createPageUrl(linkPage)}?search=${encodeURIComponent(query)}&radius=${radius || '5'}&category=${category || 'all'}`}
+              to={`${createPageUrl(linkPage)}?search=${encodeURIComponent(query)}`}
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
-              View all {count > 5 && `(${count})`}
+              View all
               <ChevronRight className="w-4 h-4" />
             </Link>
           )}
         </div>
-        <div className="space-y-2">
-          {items.map((item) => (
-            <ResultItem 
-              key={item.google_place_id || item.id} 
-              item={item} 
-              type={type} 
-              isPlaces={isPlaces} 
-            />
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map((item) => {
+            const isTemp = item.id?.toString().startsWith('temp-');
+            const itemLink = isTemp ? '#' : `${createPageUrl('Detail')}?type=${type}&id=${item.id}`;
+
+            return (
+              <Link
+                key={item.id}
+                to={itemLink}
+                className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isTemp ? 'cursor-default' : 'hover:bg-gray-50'}`}
+                onClick={isTemp ? (e) => e.preventDefault() : undefined}
+              >
+                {isPlaces ? (
+                  <PlaceImage item={item} />
+                ) : (
+                  <img
+                    src={item.image_url || 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=100'}
+                    alt={item.title || item.name}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium text-gray-900 truncate">{item.title || item.name}</h4>
+                    {item.status === 'pending' && (
+                      <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                        New
+                      </Badge>
+                    )}
+                    {item._isLoading && (
+                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                        <Loader2 className="w-2 h-2 animate-spin mr-1" />
+                        Loading
+                      </Badge>
+                    )}
+                  </div>
+                  {item._isLoading ? (
+                    <Skeleton className="h-4 w-3/4 mt-1" />
+                  ) : (
+                    <p className="text-sm text-gray-500 truncate transition-opacity">{item.description || item.category || item.type || item.address}</p>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
           {isPlaces && loadingMore && items.length === 0 && (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex items-center gap-3 p-2">
-                  <Skeleton className="w-12 h-12 rounded-lg flex-shrink-0" />
+                  <Skeleton className="w-12 h-12 rounded-lg" />
                   <div className="flex-1">
                     <Skeleton className="h-4 w-32 mb-2" />
                     <Skeleton className="h-3 w-48" />
@@ -195,14 +155,14 @@ export default function SearchResults({ results, query, radius, category, loadin
   };
 
   return (
-    <div className="mb-10">
+    <div className="mb-10 animate-fade-in">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-500">
           <span className="tabular-nums">{totalResults}</span> results for "{query}"
-          {loadingMore && <span className="text-orange-600 ml-2">• Finding more places near campus...</span>}
+          {loadingMore && <span className="text-orange-600 ml-2">• Searching Google Places...</span>}
         </p>
       </div>
-      
+
       <ResultSection
         title="Events"
         icon={Calendar}
@@ -239,3 +199,4 @@ export default function SearchResults({ results, query, radius, category, loadin
     </div>
   );
 }
+
