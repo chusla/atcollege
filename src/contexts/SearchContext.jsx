@@ -27,21 +27,21 @@ export function SearchProvider({ children }) {
     console.log('📦 [SEARCH CACHE] Saved results for:', cacheKey, results.places?.length || 0, 'places');
     
     // Also save to database for history/analytics (fire and forget)
-    const placeIds = (results.places || [])
+    const placeIdList = (results.places || [])
       .map(p => p.id || p.google_place_id)
       .filter(Boolean);
     
     SearchQuery.create({
-      query,
+      query_text: query,
       category,
-      radius,
-      campusId,
+      radius_miles: radius,
+      campus_id: campusId,
       latitude: location?.lat,
       longitude: location?.lng,
-      resultsCount: placeIds.length,
-      placeIds,
-      source: 'home',
-      isCompleted: true
+      results_count: placeIdList.length,
+      place_ids: placeIdList,
+      search_source: 'home',
+      is_completed: true
     }).catch(() => {}); // Ignore errors - DB table might not exist yet
   }, []);
 

@@ -607,6 +607,8 @@ export const SavedItem = {
   }
 }
 
+export const SearchQuery = createEntity('search_queries')
+
 export const Comment = {
   ...createEntity('comments'),
   async listByItem(itemType, itemId) {
@@ -739,6 +741,7 @@ export default {
   Opportunity,
   InterestGroup,
   SavedItem,
+  SearchQuery,
   Comment,
   User
 }

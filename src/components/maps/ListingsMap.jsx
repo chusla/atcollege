@@ -206,17 +206,10 @@ export default function ListingsMap({
     return defaultCenter
   }, [center, itemsWithCoords])
 
-  // Pan map to hovered item with smooth animation
+  // Handle marker hover (without map pan to avoid jitter)
   const handleMarkerHover = useCallback((item) => {
     setHoveredItem(item);
-    if (map && item) {
-      // Smoothly pan to the hovered marker
-      map.panTo({
-        lat: parseFloat(item.latitude),
-        lng: parseFloat(item.longitude)
-      });
-    }
-  }, [map]);
+  }, []);
 
   const onLoad = useCallback((map) => {
     setMap(map)
