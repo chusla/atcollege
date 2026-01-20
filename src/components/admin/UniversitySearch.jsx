@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Input } from '@/components/ui/input';
 import { searchUniversities } from '@/api/googlePlaces';
 import { GraduationCap, Loader2, MapPin, Search } from 'lucide-react';
@@ -13,8 +14,10 @@ export default function UniversitySearch({ onSelect, placeholder = "Search for a
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const debouncedQuery = useDebounce(query, 300);
   const wrapperRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Search when debounced query changes
   useEffect(() => {
@@ -35,6 +38,18 @@ export default function UniversitySearch({ onSelect, placeholder = "Search for a
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Update dropdown position when showing
+  useEffect(() => {
+    if (showDropdown && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+  }, [showDropdown, results]);
 
   const performSearch = async (searchQuery) => {
     setLoading(true);
@@ -64,26 +79,22 @@ export default function UniversitySearch({ onSelect, placeholder = "Search for a
     }
   };
 
-  return (
-    <div ref={wrapperRef} className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <Input
-          value={query}
-          onChange={handleInputChange}
-          onFocus={() => results.length > 0 && setShowDropdown(true)}
-          placeholder={placeholder}
-          className="pl-10 pr-10"
-        />
-        {loading && (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
-        )}
-      </div>
+  // Dropdown content component
+  const DropdownContent = () => {
+    if (!showDropdown) return null;
 
-      {/* Dropdown results */}
-      {showDropdown && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
-          {results.map((university) => (
+    const content = (
+      <div 
+        className="fixed bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto"
+        style={{
+          top: dropdownPosition.top,
+          left: dropdownPosition.left,
+          width: dropdownPosition.width,
+          zIndex: 9999
+        }}
+      >
+        {results.length > 0 ? (
+          results.map((university) => (
             <button
               key={university.google_place_id}
               onClick={() => handleSelect(university)}
@@ -100,18 +111,39 @@ export default function UniversitySearch({ onSelect, placeholder = "Search for a
                 </p>
               </div>
             </button>
-          ))}
-        </div>
-      )}
+          ))
+        ) : !loading && query.length >= 2 ? (
+          <div className="p-4 text-center text-gray-500">
+            <GraduationCap className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+            <p>No universities found for "{query}"</p>
+            <p className="text-xs mt-1">Try a different search term</p>
+          </div>
+        ) : null}
+      </div>
+    );
 
-      {/* No results */}
-      {showDropdown && !loading && query.length >= 2 && results.length === 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
-          <GraduationCap className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-          <p>No universities found for "{query}"</p>
-          <p className="text-xs mt-1">Try a different search term</p>
-        </div>
-      )}
+    // Render dropdown in a portal so it's not clipped by dialog overflow
+    return createPortal(content, document.body);
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <div className="relative" ref={inputRef}>
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Input
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => results.length > 0 && setShowDropdown(true)}
+          placeholder={placeholder}
+          className="pl-10 pr-10"
+        />
+        {loading && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+        )}
+      </div>
+
+      {/* Dropdown rendered via portal */}
+      <DropdownContent />
 
       {/* Hint */}
       {query.length > 0 && query.length < 2 && (
