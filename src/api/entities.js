@@ -313,17 +313,19 @@ export const Place = {
       return []
     }
   },
-  async createFromGooglePlace(googlePlaceData, campusId = null) {
+  async createFromGooglePlace(googlePlaceData, campusId = null, userId = null) {
     try {
       // First check if place already exists to avoid 409 conflict errors
       if (googlePlaceData.google_place_id) {
-        const { data: existingPlace } = await supabase
+        // Use maybeSingle() instead of single() - returns null if no rows found
+        const { data: existingPlace, error } = await supabase
           .from('places')
           .select()
           .eq('google_place_id', googlePlaceData.google_place_id)
-          .single();
+          .maybeSingle();
 
-        if (existingPlace) {
+        // Ignore PGRST116 errors (no rows or RLS blocking)
+        if (existingPlace && !error) {
           console.log('📝 [PLACE] Place already exists, returning existing:', googlePlaceData.name);
           return existingPlace;
         }
@@ -346,6 +348,13 @@ export const Place = {
 
       console.log('📝 [PLACE] Creating new place:', googlePlaceData.name);
 
+      // Get current user ID if not provided
+      let createdBy = userId
+      if (!createdBy) {
+        const { data: { user } } = await supabase.auth.getUser()
+        createdBy = user?.id || null
+      }
+
       const placeData = {
         name: googlePlaceData.name,
         address: googlePlaceData.address,
@@ -364,7 +373,8 @@ export const Place = {
         source: 'google_maps',
         status: 'pending',
         categorization_status: 'pending',
-        imported_at: new Date().toISOString()
+        imported_at: new Date().toISOString(),
+        created_by: createdBy // Set created_by so RLS allows updates
       }
 
       if (campusId) {
@@ -385,10 +395,11 @@ export const Place = {
             .from('places')
             .select()
             .eq('google_place_id', googlePlaceData.google_place_id)
-            .single();
+            .maybeSingle();
 
-          if (fetchError) throw fetchError;
-          return existingPlace;
+          // Return existing place if found, otherwise the insert itself succeeded
+          if (existingPlace) return existingPlace;
+          if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
         }
         throw error;
       }
@@ -405,14 +416,16 @@ export const Place = {
       const details = await getPlaceDetails(googlePlaceId)
 
       if (details?.photo_url) {
+        // Use maybeSingle() to handle RLS blocking gracefully
         const { data, error } = await supabase
           .from('places')
           .update({ image_url: details.photo_url })
           .eq('id', placeId)
           .select()
-          .single()
+          .maybeSingle()
 
-        if (error) throw error
+        // Ignore PGRST116 errors (RLS blocking)
+        if (error && error.code !== 'PGRST116') throw error
         return data
       }
       return null
@@ -490,17 +503,31 @@ export const Place = {
         updates.llm_category_confidence = confidence
       }
 
+      // Don't use .single() - RLS might block the update for Google-imported places
+      // where created_by is null. Use .maybeSingle() to handle 0 rows gracefully.
       const { data, error } = await supabase
         .from('places')
         .update(updates)
         .eq('id', id)
         .select()
-        .single()
+        .maybeSingle()
 
-      if (error) throw error
+      if (error) {
+        // If RLS blocked the update (406/PGRST116), log warning but don't throw
+        if (error.code === 'PGRST116') {
+          console.warn('Categorization update blocked by RLS for place:', id)
+          return null
+        }
+        throw error
+      }
+      
       return data
     } catch (error) {
       console.error('Error updating categorization status:', error)
+      // Don't throw for RLS-related errors, just return null
+      if (error.code === 'PGRST116' || error.message?.includes('406')) {
+        return null
+      }
       throw error
     }
   }

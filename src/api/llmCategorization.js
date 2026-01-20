@@ -16,8 +16,12 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
  */
 export async function categorizePlace(placeId) {
   try {
-    // Update status to processing
-    await Place.updateCategorizationStatus(placeId, 'processing');
+    // Update status to processing (may fail due to RLS, but continue anyway)
+    try {
+      await Place.updateCategorizationStatus(placeId, 'processing');
+    } catch (e) {
+      console.warn('Could not update status to processing:', placeId, e.message);
+    }
 
     // Get place data
     const place = await Place.get(placeId);
@@ -160,20 +164,29 @@ export async function categorizePlacesBatch(placeIds) {
     // Get full place data for all places
     const places = await Promise.all(
       placeIds.map(async (id) => {
-        const place = await Place.get(id);
-        if (!place) return null;
-        
-        // Update status to processing
-        await Place.updateCategorizationStatus(id, 'processing');
-        
-        return {
-          id: place.id,
-          name: place.name,
-          address: place.address,
-          description: place.description,
-          google_place_data: place.google_place_data,
-          image_url: place.image_url
-        };
+        try {
+          const place = await Place.get(id);
+          if (!place) return null;
+          
+          // Update status to processing (may fail due to RLS, but continue anyway)
+          try {
+            await Place.updateCategorizationStatus(id, 'processing');
+          } catch (e) {
+            console.warn('Could not update status to processing for place:', id, e.message);
+          }
+          
+          return {
+            id: place.id,
+            name: place.name,
+            address: place.address,
+            description: place.description,
+            google_place_data: place.google_place_data,
+            image_url: place.image_url
+          };
+        } catch (e) {
+          console.warn('Error getting place for categorization:', id, e.message);
+          return null;
+        }
       })
     );
 
@@ -239,9 +252,16 @@ export async function categorizePlacesBatch(placeIds) {
   } catch (error) {
     console.error('Error in batch categorization:', error);
     
-    // Mark all as failed
+    // Try to mark all as failed (may fail due to RLS, but that's okay)
     await Promise.allSettled(
-      placeIds.map(id => Place.updateCategorizationStatus(id, 'failed'))
+      placeIds.map(id => {
+        try {
+          return Place.updateCategorizationStatus(id, 'failed');
+        } catch (e) {
+          console.warn('Could not mark place as failed:', id);
+          return Promise.resolve(null);
+        }
+      })
     );
     
     return placeIds.map(id => ({
