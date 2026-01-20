@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { GraduationCap, Plus, Pencil, Trash2, MapPin, Search, Loader2, Sparkles } from 'lucide-react';
+import { GraduationCap, Plus, Pencil, Trash2, MapPin, Search, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AdminLayout from '../components/layout/AdminLayout';
 import UniversitySearch from '../components/admin/UniversitySearch';
@@ -36,6 +36,7 @@ export default function AdminCampuses() {
   });
   const [showSearch, setShowSearch] = useState(true);
   const [fetchingBranding, setFetchingBranding] = useState(false);
+  const [backfillProgress, setBackfillProgress] = useState(null); // { current, total, name }
 
   useEffect(() => {
     if (!authLoading) {
@@ -167,6 +168,65 @@ export default function AdminCampuses() {
     setDialogOpen(true);
   };
 
+  // Backfill branding for all campuses missing colors/logo
+  const handleBackfillBranding = async () => {
+    const campusesNeedingBranding = campuses.filter(c => !c.primary_color || !c.logo_url);
+    
+    if (campusesNeedingBranding.length === 0) {
+      toast({
+        title: "All set!",
+        description: "All campuses already have branding data.",
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `This will fetch branding from Wikipedia for ${campusesNeedingBranding.length} campus(es). Continue?`
+    );
+    if (!confirmed) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < campusesNeedingBranding.length; i++) {
+      const campus = campusesNeedingBranding[i];
+      setBackfillProgress({ current: i + 1, total: campusesNeedingBranding.length, name: campus.name });
+
+      try {
+        console.log(`🎓 Backfilling branding for: ${campus.name}`);
+        const branding = await fetchUniversityBranding(campus.name);
+        
+        if (branding.primaryColor || branding.logoUrl) {
+          await Campus.update(campus.id, {
+            primary_color: branding.primaryColor || campus.primary_color,
+            secondary_color: branding.secondaryColor || campus.secondary_color,
+            logo_url: branding.logoUrl ? getWikipediaImageUrl(branding.logoUrl, 200) : campus.logo_url
+          });
+          successCount++;
+          console.log(`✅ Updated ${campus.name}:`, branding);
+        } else {
+          console.log(`⚠️ No branding found for ${campus.name}`);
+          failCount++;
+        }
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`❌ Error backfilling ${campus.name}:`, error);
+        failCount++;
+      }
+    }
+
+    setBackfillProgress(null);
+    loadCampuses(); // Reload the list
+
+    toast({
+      title: "Backfill complete!",
+      description: `Updated ${successCount} campus(es). ${failCount > 0 ? `${failCount} failed.` : ''}`,
+      variant: failCount > 0 ? "default" : "default"
+    });
+  };
+
   const handleUniversitySelect = async (university) => {
     // Extract city/state from address
     const addressParts = university.address?.split(',') || [];
@@ -229,8 +289,34 @@ export default function AdminCampuses() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Campus Management</h1>
           <p className="text-gray-600 mt-2">Add and manage universities ({campuses.length} total)</p>
+          {backfillProgress && (
+            <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>
+                Fetching branding ({backfillProgress.current}/{backfillProgress.total}): {backfillProgress.name}
+              </span>
+            </div>
+          )}
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleBackfillBranding}
+            disabled={backfillProgress !== null}
+          >
+            {backfillProgress ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Backfilling...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Backfill Branding
+              </>
+            )}
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleOpenDialog} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
@@ -524,6 +610,7 @@ export default function AdminCampuses() {
             )}
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>

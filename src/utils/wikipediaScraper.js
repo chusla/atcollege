@@ -81,6 +81,33 @@ const COLOR_NAME_TO_HEX = {
   'trojans gold': '#FFC72C',
 };
 
+// Mapping of common abbreviations/short names to full Wikipedia page titles
+const UNIVERSITY_NAME_MAP = {
+  'mit': 'Massachusetts Institute of Technology',
+  'ucla': 'University of California, Los Angeles',
+  'uc berkeley': 'University of California, Berkeley',
+  'ucb': 'University of California, Berkeley',
+  'usc': 'University of Southern California',
+  'nyu': 'New York University',
+  'bu': 'Boston University',
+  'bc': 'Boston College',
+  'caltech': 'California Institute of Technology',
+  'georgia tech': 'Georgia Institute of Technology',
+  'ut austin': 'University of Texas at Austin',
+  'penn': 'University of Pennsylvania',
+  'upenn': 'University of Pennsylvania',
+  'unc': 'University of North Carolina at Chapel Hill',
+  'osu': 'Ohio State University',
+  'psu': 'Pennsylvania State University',
+  'uva': 'University of Virginia',
+  'uw': 'University of Washington',
+  'umich': 'University of Michigan',
+  'umd': 'University of Maryland, College Park',
+  'uiuc': 'University of Illinois Urbana-Champaign',
+  'texas a&m': 'Texas A&M University',
+  'tamu': 'Texas A&M University',
+};
+
 /**
  * Search Wikipedia for a university page
  * @param {string} universityName 
@@ -88,7 +115,14 @@ const COLOR_NAME_TO_HEX = {
  */
 async function searchWikipedia(universityName) {
   try {
-    const searchQuery = `${universityName}`;
+    // Check if we have a direct mapping for this name
+    const normalizedName = universityName.toLowerCase().trim();
+    const mappedName = UNIVERSITY_NAME_MAP[normalizedName];
+    
+    // Use mapped name if available, otherwise use original
+    const searchQuery = mappedName || universityName;
+    console.log('🎓 [WIKIPEDIA] Searching for:', searchQuery, mappedName ? '(mapped)' : '');
+    
     const url = `${WIKIPEDIA_QUERY_API}?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`;
     
     const response = await fetch(url);
@@ -99,10 +133,12 @@ async function searchWikipedia(universityName) {
       for (const result of data.query.search) {
         const title = result.title.toLowerCase();
         if (title.includes('university') || title.includes('college') || title.includes('institute')) {
+          console.log('🎓 [WIKIPEDIA] Found page:', result.title);
           return result.title;
         }
       }
       // Fallback to first result
+      console.log('🎓 [WIKIPEDIA] Using first result:', data.query.search[0].title);
       return data.query.search[0].title;
     }
     return null;
