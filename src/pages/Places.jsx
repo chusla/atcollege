@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Place, SavedItem, Campus } from '@/api/entities';
-import { filterByRadius } from '@/utils/geo';
+import { searchPlaces, getPlaceDetails, milesToMeters } from '@/api/googlePlaces';
+import { filterByRadius, calculateDistance } from '@/utils/geo';
 import PlaceCard from '../components/cards/PlaceCard';
 import PlaceRowCard from '../components/results/PlaceRowCard';
 import ViewToggle from '../components/results/ViewToggle';
@@ -11,15 +12,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { MapPin, Filter, Building2, Star, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
+import { MapPin, Filter, Building2, Star, ArrowUpDown, SlidersHorizontal, Loader2 } from 'lucide-react';
+
+const PLACES_PAGE_VERSION = '2.0.0-google-search';
 
 export default function Places() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
   const [view, setView] = useState('grid');
   const [showFilters, setShowFilters] = useState(false);
+  const googleSearchDone = useRef(false);
+
+  // Log version on mount to verify deployment
+  useEffect(() => {
+    console.log(`📍 [PLACES PAGE] Version: ${PLACES_PAGE_VERSION} - Loaded at ${new Date().toISOString()}`);
+    console.log('📍 [PLACES PAGE] Features: Google Places search enabled');
+  }, []);
 
   const urlParams = new URLSearchParams(window.location.search);
   const [searchQuery, setSearchQuery] = useState(urlParams.get('search') || '');
@@ -31,6 +42,9 @@ export default function Places() {
   const [locationError, setLocationError] = useState(null);
 
   useEffect(() => {
+    // Reset Google search flag when search query changes
+    googleSearchDone.current = false;
+    
     // If radius is set OR there's a search query, we need location for filtering/sorting
     if ((radius && radius !== 'any') || searchQuery) {
       getUserLocation();
@@ -172,53 +186,168 @@ export default function Places() {
         );
       }
 
-      // --- Client-side Sorting ---
-      data.sort((a, b) => {
-        // When searching, prioritize by distance first (if available)
-        if (searchQuery && searchQuery.trim() && a.distance !== undefined && b.distance !== undefined) {
-          // Sort by distance first, then by rating
-          if (Math.abs(a.distance - b.distance) > 0.5) { // If distance difference > 0.5 miles
-            return a.distance - b.distance;
-          }
-          // If similar distance, fall back to rating
-        }
-
-        const rA = a.rating || 0;
-        const rB = b.rating || 0;
-
-        switch (sortBy) {
-          case 'highest':
-            // High -> Low, then No rating (0)
-            return rB - rA;
-
-          case 'lowest':
-            // Low (but > 0) -> High, then No rating
-            // Treat 0 as Infinity for sorting so it goes to end
-            const valA = rA === 0 ? 999 : rA;
-            const valB = rB === 0 ? 999 : rB;
-            return valA - valB;
-
-          case 'no_rating':
-            // No rating (0) first, then High -> Low
-            const isNoRatingA = rA === 0 ? 1 : 0;
-            const isNoRatingB = rB === 0 ? 1 : 0;
-            if (isNoRatingA !== isNoRatingB) {
-              return isNoRatingB - isNoRatingA; // 1 (true) first
-            }
-            // If both have rating or both no rating, sort desc
-            return rB - rA;
-
-          default:
-            return rB - rA;
-        }
+      // Sort and show DB results first
+      const sortedData = sortPlaces(data);
+      console.log('📍 [PLACES PAGE] DB results loaded:', {
+        total: data.length,
+        displayed: Math.min(sortedData.length, 50),
+        searchQuery: searchQuery || 'none',
+        hasLocation: !!userLocation
       });
+      setPlaces(sortedData.slice(0, 50));
+      setLoading(false);
 
-      // Limit results
-      setPlaces(data.slice(0, 50));
+      // If there's a search query and we have location, also fetch Google Places
+      if (searchQuery && searchQuery.trim() && userLocation && !googleSearchDone.current) {
+        googleSearchDone.current = true;
+        fetchGooglePlaces(sortedData);
+      }
     } catch (error) {
       console.error('Error loading places:', error);
-    } finally {
       setLoading(false);
+    }
+  };
+
+  const sortPlaces = (data) => {
+    return [...data].sort((a, b) => {
+      // When searching, prioritize by distance first (if available)
+      if (searchQuery && searchQuery.trim() && a.distance !== undefined && b.distance !== undefined) {
+        // Sort by distance first, then by rating
+        if (Math.abs(a.distance - b.distance) > 0.5) { // If distance difference > 0.5 miles
+          return a.distance - b.distance;
+        }
+        // If similar distance, fall back to rating
+      }
+
+      const rA = a.rating || 0;
+      const rB = b.rating || 0;
+
+      switch (sortBy) {
+        case 'highest':
+          // High -> Low, then No rating (0)
+          return rB - rA;
+
+        case 'lowest':
+          // Low (but > 0) -> High, then No rating
+          // Treat 0 as Infinity for sorting so it goes to end
+          const valA = rA === 0 ? 999 : rA;
+          const valB = rB === 0 ? 999 : rB;
+          return valA - valB;
+
+        case 'no_rating':
+          // No rating (0) first, then High -> Low
+          const isNoRatingA = rA === 0 ? 1 : 0;
+          const isNoRatingB = rB === 0 ? 1 : 0;
+          if (isNoRatingA !== isNoRatingB) {
+            return isNoRatingB - isNoRatingA; // 1 (true) first
+          }
+          // If both have rating or both no rating, sort desc
+          return rB - rA;
+
+        default:
+          return rB - rA;
+      }
+    });
+  };
+
+  const fetchGooglePlaces = async (dbPlaces) => {
+    if (!userLocation || !searchQuery) {
+      console.log('📍 [PLACES PAGE] Skipping Google search - no location or query', { userLocation, searchQuery });
+      return;
+    }
+
+    setLoadingGoogle(true);
+    console.log('📍 [PLACES PAGE] Starting Google Places search:', {
+      query: searchQuery,
+      location: userLocation,
+      radius: radius,
+      dbPlacesCount: dbPlaces.length
+    });
+
+    try {
+      const radiusMeters = radius === 'any' ? 50000 : milesToMeters(parseFloat(radius));
+      const radiusMiles = radius === 'any' ? 50 : parseFloat(radius);
+
+      // Fetch Google Places
+      const googleResults = await searchPlaces(searchQuery, userLocation, radiusMeters);
+      
+      if (!googleResults || googleResults.length === 0) {
+        console.log('🔍 [PLACES PAGE] No Google results');
+        setLoadingGoogle(false);
+        return;
+      }
+
+      console.log('📍 [PLACES PAGE] Got', googleResults.length, 'Google results');
+
+      // Check which places already exist in DB
+      const googlePlaceIds = googleResults.map(p => p.google_place_id).filter(Boolean);
+      const existingPlaces = await Place.findByGooglePlaceIds(googlePlaceIds);
+      const existingPlacesMap = new Map(existingPlaces.map(p => [p.google_place_id, p]));
+      const existingDbIds = new Set(dbPlaces.map(p => p.google_place_id).filter(Boolean));
+
+      // Process Google results - show immediately with basic info
+      const newGooglePlaces = [];
+      for (const googlePlace of googleResults) {
+        const existing = existingPlacesMap.get(googlePlace.google_place_id);
+        if (existing && !existingDbIds.has(existing.google_place_id)) {
+          // Use existing DB place
+          const withDistance = {
+            ...existing,
+            distance: calculateDistance(userLocation.lat, userLocation.lng, 
+              parseFloat(existing.latitude), parseFloat(existing.longitude))
+          };
+          if (withDistance.distance <= radiusMiles) {
+            newGooglePlaces.push(withDistance);
+          }
+        } else if (!existing && !existingDbIds.has(googlePlace.google_place_id)) {
+          // New place from Google - add with basic info
+          const distance = calculateDistance(userLocation.lat, userLocation.lng,
+            googlePlace.latitude, googlePlace.longitude);
+          if (distance <= radiusMiles) {
+            newGooglePlaces.push({
+              ...googlePlace,
+              id: `google-${googlePlace.google_place_id}`,
+              distance: Math.round(distance * 10) / 10,
+              status: 'pending',
+              source: 'google_maps',
+              _isGoogleResult: true
+            });
+          }
+        }
+      }
+
+      // Merge with DB results and sort
+      const mergedPlaces = [...dbPlaces, ...newGooglePlaces];
+      const sortedMerged = sortPlaces(mergedPlaces);
+      console.log('📍 [PLACES PAGE] Merged results:', {
+        dbPlaces: dbPlaces.length,
+        newGooglePlaces: newGooglePlaces.length,
+        total: mergedPlaces.length,
+        displayed: Math.min(sortedMerged.length, 50)
+      });
+      setPlaces(sortedMerged.slice(0, 50));
+
+      // Create new places in DB in background (don't block UI)
+      const user = getCurrentUser();
+      for (const place of newGooglePlaces.filter(p => p._isGoogleResult)) {
+        try {
+          const details = await getPlaceDetails(place.google_place_id);
+          const placeData = details ? { ...place, ...details } : place;
+          const created = await Place.createFromGooglePlace(placeData, user?.selected_campus_id);
+          
+          // Update the place in our list with the real DB record
+          setPlaces(prev => prev.map(p => 
+            p.google_place_id === place.google_place_id ? { ...created, distance: place.distance } : p
+          ));
+        } catch (error) {
+          console.warn('Could not save place to DB:', place.name, error.message);
+        }
+      }
+
+    } catch (error) {
+      console.error('Error fetching Google Places:', error);
+    } finally {
+      setLoadingGoogle(false);
     }
   };
 
@@ -278,6 +407,12 @@ export default function Places() {
               ? `Showing results near your campus${radius !== 'any' ? ` within ${radius} miles` : ''}`
               : 'Find the best spots in and around campus'
             }
+            {loadingGoogle && (
+              <span className="inline-flex items-center gap-1 ml-2 text-orange-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Searching Google Places...
+              </span>
+            )}
           </p>
         </motion.div>
 
@@ -421,8 +556,17 @@ export default function Places() {
             className="text-center py-16"
           >
             <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No places found</h3>
-            <p className="text-gray-500">Try adjusting your filters</p>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              {loadingGoogle ? 'Searching...' : 'No places found'}
+            </h3>
+            <p className="text-gray-500">
+              {loadingGoogle 
+                ? 'Looking for places matching your search...'
+                : searchQuery 
+                  ? `No places found for "${searchQuery}". Try a different search term.`
+                  : 'Try adjusting your filters'
+              }
+            </p>
           </motion.div>
         )}
       </div>
