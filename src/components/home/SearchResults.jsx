@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Building2, Briefcase, Users, ChevronRight, Loader2 } from 'lucide-react';
 
-export default function SearchResults({ results, query, loading, loadingMore }) {
+export default function SearchResults({ results, query, loading, loadingMore, radius = '5', category = 'all' }) {
   if (loading) {
     return (
       <div className="space-y-6 mb-10">
@@ -83,7 +83,7 @@ export default function SearchResults({ results, query, loading, loadingMore }) 
           </div>
           {count > 5 && (
             <Link
-              to={`${createPageUrl(linkPage)}?search=${encodeURIComponent(query)}`}
+              to={`${createPageUrl(linkPage)}?search=${encodeURIComponent(query)}&radius=${radius}${category !== 'all' ? `&category=${encodeURIComponent(category)}` : ''}`}
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
               View all

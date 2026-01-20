@@ -22,6 +22,7 @@ export default function Places() {
   const [showFilters, setShowFilters] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
+  const [searchQuery, setSearchQuery] = useState(urlParams.get('search') || '');
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
   const [radius, setRadius] = useState(urlParams.get('radius') || 'any');
   const [ratingFilter, setRatingFilter] = useState('all');
@@ -30,16 +31,16 @@ export default function Places() {
   const [locationError, setLocationError] = useState(null);
 
   useEffect(() => {
-    // If radius is set, we need location
-    if (radius && radius !== 'any') {
+    // If radius is set OR there's a search query, we need location for filtering/sorting
+    if ((radius && radius !== 'any') || searchQuery) {
       getUserLocation();
     }
-  }, [radius]);
+  }, [radius, searchQuery]);
 
   useEffect(() => {
     loadPlaces();
     loadSavedItems();
-  }, [category, radius, userLocation, ratingFilter, sortBy]);
+  }, [category, radius, userLocation, ratingFilter, sortBy, searchQuery]);
 
   const getUserLocation = () => {
     if (!navigator.geolocation) {
@@ -122,6 +123,17 @@ export default function Places() {
 
       // --- Client-side Filtering ---
 
+      // 0. Search Query Filter
+      if (searchQuery && searchQuery.trim()) {
+        const searchLower = searchQuery.toLowerCase();
+        data = data.filter(p =>
+          p.name?.toLowerCase().includes(searchLower) ||
+          p.description?.toLowerCase().includes(searchLower) ||
+          p.category?.toLowerCase().includes(searchLower) ||
+          p.address?.toLowerCase().includes(searchLower)
+        );
+      }
+
       // 1. Rating Filter
       if (ratingFilter !== 'all') {
         data = data.filter(p => {
@@ -149,10 +161,28 @@ export default function Places() {
           userLocation.lng,
           parseFloat(radius)
         );
+      } else if (userLocation && searchQuery && searchQuery.trim()) {
+        // When searching with 'any' radius, use a large radius (50 miles) to filter out truly distant results
+        // and add distance info for sorting
+        data = filterByRadius(
+          data,
+          userLocation.lat,
+          userLocation.lng,
+          50 // 50 miles max when searching
+        );
       }
 
       // --- Client-side Sorting ---
       data.sort((a, b) => {
+        // When searching, prioritize by distance first (if available)
+        if (searchQuery && searchQuery.trim() && a.distance !== undefined && b.distance !== undefined) {
+          // Sort by distance first, then by rating
+          if (Math.abs(a.distance - b.distance) > 0.5) { // If distance difference > 0.5 miles
+            return a.distance - b.distance;
+          }
+          // If similar distance, fall back to rating
+        }
+
         const rA = a.rating || 0;
         const rB = b.rating || 0;
 
@@ -240,8 +270,15 @@ export default function Places() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Places</h1>
-          <p className="text-gray-600">Find the best spots in and around campus</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {searchQuery ? `Places matching "${searchQuery}"` : 'Places'}
+          </h1>
+          <p className="text-gray-600">
+            {searchQuery 
+              ? `Showing results near your campus${radius !== 'any' ? ` within ${radius} miles` : ''}`
+              : 'Find the best spots in and around campus'
+            }
+          </p>
         </motion.div>
 
         {/* Mobile Filter Toggle */}

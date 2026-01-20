@@ -516,6 +516,8 @@ export default function Home() {
             query={searchQuery}
             loading={searchLoading}
             loadingMore={loadingMore}
+            radius={searchRadius}
+            category={searchCategory}
           />
         )}
 
