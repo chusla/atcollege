@@ -65,6 +65,20 @@ const COLOR_NAME_TO_HEX = {
   'notre dame gold': '#C99700',
   'usc cardinal': '#990000',
   'usc gold': '#FFCC00',
+  'tufts blue': '#3E8EDE',
+  'columbia blue': '#B9D9EB',
+  'princeton orange': '#FF8F00',
+  'duke blue': '#003087',
+  'tar heel blue': '#7BAFD4',
+  'aggie maroon': '#500000',
+  'burnt orange': '#BF5700',
+  'cream': '#FFFDD0',
+  'old gold': '#CFB53B',
+  'vegas gold': '#C5B358',
+  'irish green': '#00843D',
+  'fighting irish green': '#0C2340',
+  'trojan cardinal': '#9D2235',
+  'trojans gold': '#FFC72C',
 };
 
 /**
@@ -140,39 +154,69 @@ async function getWikipediaInfobox(pageTitle) {
 function extractColors(html) {
   const colors = { primary: null, secondary: null };
   
-  // Look for colors in the infobox
-  // Pattern 1: Look for "colors" row in infobox
-  const colorPatterns = [
+  // Look for colors in the infobox - find the Colors row
+  // Pattern: <th>Colors</th><td>...color data...</td>
+  const colorRowPatterns = [
+    /Colors<\/a><\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi,
+    /Colors<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi,
     /colors?<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi,
     /school\s*colors?<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi,
     /athletics\s*colors?<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/gi,
   ];
   
-  let colorText = '';
-  for (const pattern of colorPatterns) {
+  let colorCell = '';
+  for (const pattern of colorRowPatterns) {
     const match = pattern.exec(html);
     if (match) {
-      colorText = match[1];
+      colorCell = match[1];
+      console.log('🎓 [WIKIPEDIA] Found color cell:', colorCell.substring(0, 200));
       break;
     }
   }
   
-  if (colorText) {
-    // Extract hex colors directly
-    const hexMatches = colorText.match(/#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3}/g);
-    if (hexMatches && hexMatches.length > 0) {
-      colors.primary = hexMatches[0];
-      if (hexMatches.length > 1) {
-        colors.secondary = hexMatches[1];
+  if (colorCell) {
+    // Method 1: Look for background-color in legend-color spans (most common Wikipedia format)
+    // Pattern: <span class="legend-color" style="...background-color:#3E8EDE;...">
+    const bgColorMatches = colorCell.matchAll(/background-color:\s*([#\w]+)/gi);
+    const bgColors = [];
+    for (const match of bgColorMatches) {
+      const color = match[1];
+      // Skip transparent or inherit values
+      if (color && !color.includes('transparent') && !color.includes('inherit')) {
+        bgColors.push(color.toUpperCase());
       }
     }
     
-    // If no hex colors, try to extract color names
+    console.log('🎓 [WIKIPEDIA] Background colors found:', bgColors);
+    
+    if (bgColors.length > 0) {
+      colors.primary = bgColors[0];
+      if (bgColors.length > 1) {
+        colors.secondary = bgColors[1];
+      }
+    }
+    
+    // Method 2: Look for hex colors directly in the text (fallback)
     if (!colors.primary) {
-      // Strip HTML tags
-      const plainText = colorText.replace(/<[^>]+>/g, ' ').toLowerCase();
+      const hexMatches = colorCell.match(/#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3}/g);
+      if (hexMatches && hexMatches.length > 0) {
+        // Filter out common non-color hex values
+        const validColors = hexMatches.filter(c => 
+          !['#000000', '#FFFFFF', '#ffffff', '#000'].includes(c) || hexMatches.length <= 2
+        );
+        if (validColors.length > 0) {
+          colors.primary = validColors[0].toUpperCase();
+          if (validColors.length > 1) {
+            colors.secondary = validColors[1].toUpperCase();
+          }
+        }
+      }
+    }
+    
+    // Method 3: Try to extract color names (last resort)
+    if (!colors.primary) {
+      const plainText = colorCell.replace(/<[^>]+>/g, ' ').toLowerCase();
       
-      // Look for color names
       for (const [colorName, hex] of Object.entries(COLOR_NAME_TO_HEX)) {
         if (plainText.includes(colorName)) {
           if (!colors.primary) {
@@ -190,6 +234,8 @@ function extractColors(html) {
   if (colors.primary && !colors.secondary) {
     colors.secondary = '#FFFFFF';
   }
+  
+  console.log('🎓 [WIKIPEDIA] Final extracted colors:', colors);
   
   return colors;
 }
