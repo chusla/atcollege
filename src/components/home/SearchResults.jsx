@@ -4,6 +4,7 @@ import { createPageUrl } from '@/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Building2, Briefcase, Users, ChevronRight, Loader2 } from 'lucide-react';
+import { getPlaceImageUrl } from '@/utils/imageFallback';
 
 export default function SearchResults({ results, query, loading, loadingMore, radius = '5', category = 'all' }) {
   if (loading) {
@@ -34,16 +35,15 @@ export default function SearchResults({ results, query, loading, loadingMore, ra
     const [imageLoaded, setImageLoaded] = useState(false);
     const [imageError, setImageError] = useState(false);
     const isLoadingDetails = item._isLoading;
-    const hasImage = item.image_url && !imageError;
+    
+    // Get the best available image - use contextual fallback instead of just showing icon
+    const imageUrl = getPlaceImageUrl(item, 100);
+    const hasValidImage = (item.image_url && !imageError) || imageUrl;
 
-    if (isLoadingDetails || !hasImage) {
+    if (isLoadingDetails) {
       return (
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center overflow-hidden">
-          {isLoadingDetails ? (
-            <div className="animate-pulse w-full h-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer" />
-          ) : (
-            <Building2 className="w-5 h-5 text-gray-400" />
-          )}
+          <div className="animate-pulse w-full h-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer" />
         </div>
       );
     }
@@ -54,7 +54,7 @@ export default function SearchResults({ results, query, loading, loadingMore, ra
           <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200" />
         )}
         <img
-          src={item.image_url}
+          src={imageError ? imageUrl : (item.image_url || imageUrl)}
           alt={item.title || item.name}
           className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           onLoad={() => setImageLoaded(true)}

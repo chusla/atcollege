@@ -262,6 +262,46 @@ export const Place = {
       return []
     }
   },
+  async searchNearby(searchQuery, lat, lng, radiusMiles = 50, limit = 100) {
+    try {
+      console.log('📍 [DB] Searching places nearby:', { searchQuery, lat, lng, radiusMiles });
+      const bbox = getBoundingBox(lat, lng, radiusMiles)
+      const searchLower = searchQuery.toLowerCase()
+
+      // Query places within bounding box
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .in('status', ['approved', 'pending'])
+        .gte('latitude', bbox.minLat)
+        .lte('latitude', bbox.maxLat)
+        .gte('longitude', bbox.minLng)
+        .lte('longitude', bbox.maxLng)
+        .limit(limit)
+
+      if (error) throw error
+
+      // Filter by search query and exact radius
+      const filtered = (data || []).filter(p => {
+        const matchesSearch = 
+          p.name?.toLowerCase().includes(searchLower) ||
+          p.description?.toLowerCase().includes(searchLower) ||
+          p.category?.toLowerCase().includes(searchLower) ||
+          p.llm_category?.toLowerCase().includes(searchLower) ||
+          p.address?.toLowerCase().includes(searchLower) ||
+          p.google_place_data?.types?.some(t => t.toLowerCase().includes(searchLower));
+        return matchesSearch;
+      });
+
+      // Add distance and filter by exact radius
+      const withDistance = filterByRadius(filtered, lat, lng, radiusMiles);
+      console.log('📍 [DB] Search results:', { total: data?.length, filtered: filtered.length, withinRadius: withDistance.length });
+      return withDistance;
+    } catch (error) {
+      console.error('Error in searchNearby places:', error)
+      return []
+    }
+  },
   async findByGooglePlaceId(googlePlaceId) {
     try {
       // Handle duplicates by getting the most recent one (or first approved)

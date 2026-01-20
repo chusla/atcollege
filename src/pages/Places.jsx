@@ -12,11 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { MapPin, Filter, Building2, Star, ArrowUpDown, SlidersHorizontal, Loader2 } from 'lucide-react';
+import { MapPin, Filter, Building2, Star, ArrowUpDown, SlidersHorizontal, Loader2, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const PLACES_PAGE_VERSION = '2.0.0-google-search';
+const PLACES_PAGE_VERSION = '2.3.0-back-button';
 
 export default function Places() {
+  const navigate = useNavigate();
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,8 +59,13 @@ export default function Places() {
   }, [category, radius, userLocation, ratingFilter, sortBy, searchQuery]);
 
   const getUserLocation = () => {
+    // App is campus-centered, not user-location centered
+    // Always use the user's selected campus location for consistent results
+    fetchCampusLocation();
+    
+    /* DISABLED: User geolocation - caused issues showing results from user's physical location
+       instead of their selected campus (e.g., Hawaii results when user wanted Columbia)
     if (!navigator.geolocation) {
-      // Fallback to campus location if geolocation not supported
       fetchCampusLocation();
       return;
     }
@@ -76,6 +83,7 @@ export default function Places() {
         fetchCampusLocation();
       }
     );
+    */
   };
 
   const fetchCampusLocation = async () => {
@@ -104,9 +112,60 @@ export default function Places() {
   const loadPlaces = async () => {
     setLoading(true);
     try {
-      const filters = {};
+      let data = [];
+      const radiusMiles = radius === 'any' ? 50 : parseFloat(radius);
+
+      // If we have a search query AND location, use the optimized searchNearby
+      if (searchQuery && searchQuery.trim() && userLocation) {
+        console.log('📍 [PLACES PAGE] Using searchNearby for:', searchQuery);
+        data = await Place.searchNearby(searchQuery, userLocation.lat, userLocation.lng, radiusMiles, 100);
+      } 
+      // If we have location but no search, use listNearby
+      else if (userLocation) {
+        console.log('📍 [PLACES PAGE] Using listNearby');
+        data = await Place.listNearby(userLocation.lat, userLocation.lng, radiusMiles, 100);
+      }
+      // Fallback to filter (no location)
+      else {
+        console.log('📍 [PLACES PAGE] Using filter (no location)');
+        const filters = {};
+        if (category && category !== 'all') {
+          const categoryMap = {
+            'restaurant': 'Restaurants',
+            'restaurants': 'Restaurants',
+            'cafe': 'Cafes',
+            'cafes': 'Cafes',
+            'bar': 'Bars',
+            'bars': 'Bars',
+            'gym': 'Other',
+            'library': 'Study Spots',
+            'study_spot': 'Study Spots',
+            'study_spots': 'Study Spots',
+            'housing': 'Housing',
+            'entertainment': 'Entertainment',
+            'shopping': 'Shopping',
+            'other': 'Other'
+          };
+          const dbCategory = categoryMap[category.toLowerCase()] || category;
+          filters.category = dbCategory;
+        }
+        data = await Place.filter(filters, { limit: 100 });
+        data = (data || []).filter(p => ['approved', 'pending'].includes(p.status));
+        
+        // Client-side search filter when no location
+        if (searchQuery && searchQuery.trim()) {
+          const searchLower = searchQuery.toLowerCase();
+          data = data.filter(p =>
+            p.name?.toLowerCase().includes(searchLower) ||
+            p.description?.toLowerCase().includes(searchLower) ||
+            p.category?.toLowerCase().includes(searchLower) ||
+            p.address?.toLowerCase().includes(searchLower)
+          );
+        }
+      }
+
+      // Category filter (applies to all queries)
       if (category && category !== 'all') {
-        // Map filter values to database category values
         const categoryMap = {
           'restaurant': 'Restaurants',
           'restaurants': 'Restaurants',
@@ -114,8 +173,8 @@ export default function Places() {
           'cafes': 'Cafes',
           'bar': 'Bars',
           'bars': 'Bars',
-          'gym': 'Other', // Gym maps to Other in schema
-          'library': 'Study Spots', // Library maps to Study Spots
+          'gym': 'Other',
+          'library': 'Study Spots',
           'study_spot': 'Study Spots',
           'study_spots': 'Study Spots',
           'housing': 'Housing',
@@ -124,31 +183,13 @@ export default function Places() {
           'other': 'Other'
         };
         const dbCategory = categoryMap[category.toLowerCase()] || category;
-        filters.category = dbCategory;
-      }
-
-      // Use raw query to include both approved and pending statuses
-      let data = await Place.filter(filters, {
-        limit: 100 // Get more to filter by radius
-      });
-
-      // Filter to approved or pending status (exclude rejected/spam)
-      data = (data || []).filter(p => ['approved', 'pending'].includes(p.status));
-
-      // --- Client-side Filtering ---
-
-      // 0. Search Query Filter
-      if (searchQuery && searchQuery.trim()) {
-        const searchLower = searchQuery.toLowerCase();
-        data = data.filter(p =>
-          p.name?.toLowerCase().includes(searchLower) ||
-          p.description?.toLowerCase().includes(searchLower) ||
-          p.category?.toLowerCase().includes(searchLower) ||
-          p.address?.toLowerCase().includes(searchLower)
+        data = data.filter(p => 
+          p.category === dbCategory || 
+          p.llm_category === dbCategory
         );
       }
 
-      // 1. Rating Filter
+      // Rating Filter
       if (ratingFilter !== 'all') {
         data = data.filter(p => {
           const r = p.rating || 0;
@@ -156,7 +197,7 @@ export default function Places() {
             case 'no_rating':
               return r === 0;
             case '5':
-              return r >= 4.8; // Approximate for 5.0
+              return r >= 4.8;
             case '4':
               return r >= 4.0;
             case 'under_3':
@@ -165,25 +206,6 @@ export default function Places() {
               return true;
           }
         });
-      }
-
-      // 2. Radius Filter
-      if (userLocation && radius !== 'any' && radius !== 'all') {
-        data = filterByRadius(
-          data,
-          userLocation.lat,
-          userLocation.lng,
-          parseFloat(radius)
-        );
-      } else if (userLocation && searchQuery && searchQuery.trim()) {
-        // When searching with 'any' radius, use a large radius (50 miles) to filter out truly distant results
-        // and add distance info for sorting
-        data = filterByRadius(
-          data,
-          userLocation.lat,
-          userLocation.lng,
-          50 // 50 miles max when searching
-        );
       }
 
       // Sort and show DB results first
@@ -279,11 +301,21 @@ export default function Places() {
 
       console.log('📍 [PLACES PAGE] Got', googleResults.length, 'Google results');
 
-      // Check which places already exist in DB
+      // Check which places already exist in DB (for deduplication)
       const googlePlaceIds = googleResults.map(p => p.google_place_id).filter(Boolean);
       const existingPlaces = await Place.findByGooglePlaceIds(googlePlaceIds);
       const existingPlacesMap = new Map(existingPlaces.map(p => [p.google_place_id, p]));
       const existingDbIds = new Set(dbPlaces.map(p => p.google_place_id).filter(Boolean));
+      
+      // Count pending places for logging
+      const pendingInDb = dbPlaces.filter(p => p.status === 'pending').length;
+      const approvedInDb = dbPlaces.filter(p => p.status === 'approved').length;
+      console.log('📍 [PLACES PAGE] Deduplication check:', {
+        googleResults: googleResults.length,
+        existingInDb: existingPlaces.length,
+        alreadyInResults: existingDbIds.size,
+        dbBreakdown: { pending: pendingInDb, approved: approvedInDb }
+      });
 
       // Process Google results - show immediately with basic info
       const newGooglePlaces = [];
@@ -319,11 +351,22 @@ export default function Places() {
       // Merge with DB results and sort
       const mergedPlaces = [...dbPlaces, ...newGooglePlaces];
       const sortedMerged = sortPlaces(mergedPlaces);
+      
+      // Count by source for logging
+      const fromDbPending = mergedPlaces.filter(p => !p._isGoogleResult && p.status === 'pending').length;
+      const fromDbApproved = mergedPlaces.filter(p => !p._isGoogleResult && p.status === 'approved').length;
+      const fromGoogleNew = mergedPlaces.filter(p => p._isGoogleResult).length;
+      
       console.log('📍 [PLACES PAGE] Merged results:', {
         dbPlaces: dbPlaces.length,
         newGooglePlaces: newGooglePlaces.length,
         total: mergedPlaces.length,
-        displayed: Math.min(sortedMerged.length, 50)
+        displayed: Math.min(sortedMerged.length, 50),
+        breakdown: {
+          dbApproved: fromDbApproved,
+          dbPending: fromDbPending,
+          googleNew: fromGoogleNew
+        }
       });
       setPlaces(sortedMerged.slice(0, 50));
 
@@ -399,6 +442,15 @@ export default function Places() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
+          {/* Back Button */}
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+          
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {searchQuery ? `Places matching "${searchQuery}"` : 'Places'}
           </h1>

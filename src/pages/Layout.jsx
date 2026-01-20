@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Home, Heart, User, Menu, X, Plus } from 'lucide-react';
+import { Campus } from '@/api/entities';
+import { Home, Heart, User, Menu, X, Plus, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AddListingDialog from '../components/listings/AddListingDialog';
 import AuthModal from '../components/auth/AuthModal';
@@ -12,8 +13,24 @@ export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAddListing, setShowAddListing] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [selectedCampus, setSelectedCampus] = useState(null);
   
   const user = getCurrentUser();
+
+  // Load selected campus data for branding
+  useEffect(() => {
+    const loadCampus = async () => {
+      if (user?.selected_campus_id) {
+        try {
+          const campus = await Campus.get(user.selected_campus_id);
+          setSelectedCampus(campus);
+        } catch (error) {
+          console.error('Error loading campus:', error);
+        }
+      }
+    };
+    loadCampus();
+  }, [user?.selected_campus_id]);
 
   // Pages that don't need the layout navigation
   const noNavPages = ['Landing', 'SelectCollege', 'Admin'];
@@ -55,19 +72,52 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Top Header */}
       {showNav && (
-        <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+        <header 
+          className="border-b sticky top-0 z-50 transition-colors"
+          style={{ 
+            backgroundColor: selectedCampus?.primary_color ? `${selectedCampus.primary_color}10` : 'white',
+            borderColor: selectedCampus?.primary_color ? `${selectedCampus.primary_color}30` : '#f3f4f6'
+          }}
+        >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
-              {/* Logo */}
-              <Link to={createPageUrl('Landing')} className="flex items-center gap-1">
-                <span className="text-xl font-bold">
-                  <span className="text-orange-500">at</span>
-                  <span className="text-blue-900">College</span>
-                </span>
-                <span className="hidden sm:inline text-sm text-gray-500 ml-2">
-                  Social Life in and Around Campus
-                </span>
-              </Link>
+              {/* Logo & Campus Branding */}
+              <div className="flex items-center gap-3">
+                <Link to={createPageUrl('Landing')} className="flex items-center gap-1">
+                  <span className="text-xl font-bold">
+                    <span className="text-orange-500">at</span>
+                    <span className="text-blue-900">College</span>
+                  </span>
+                </Link>
+                
+                {/* Campus Badge */}
+                {selectedCampus && (
+                  <div 
+                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full"
+                    style={{ 
+                      backgroundColor: selectedCampus.primary_color || '#1e40af',
+                      color: selectedCampus.secondary_color || 'white'
+                    }}
+                  >
+                    {selectedCampus.logo_url ? (
+                      <img 
+                        src={selectedCampus.logo_url} 
+                        alt={selectedCampus.name} 
+                        className="w-5 h-5 object-contain"
+                      />
+                    ) : (
+                      <GraduationCap className="w-4 h-4" />
+                    )}
+                    <span className="text-sm font-medium">{selectedCampus.name}</span>
+                  </div>
+                )}
+                
+                {!selectedCampus && user?.selected_campus_name && (
+                  <span className="hidden sm:inline text-sm text-gray-500">
+                    {user.selected_campus_name}
+                  </span>
+                )}
+              </div>
 
               {/* Desktop Navigation */}
               <nav className="hidden md:flex items-center gap-1">

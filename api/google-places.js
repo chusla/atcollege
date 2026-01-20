@@ -104,6 +104,38 @@ export default async function handler(req, res) {
       };
       method = 'GET';
       // No body needed for GET request
+    } else if (endpoint === 'autocomplete') {
+      // Autocomplete (New) - for searching universities/colleges
+      url = new URL('https://places.googleapis.com/v1/places:autocomplete');
+      headers = {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': API_KEY,
+      };
+      method = 'POST';
+      body = JSON.stringify({
+        input: queryParams.input,
+        includedPrimaryTypes: queryParams.types ? queryParams.types.split(',') : undefined,
+        // includedRegionCodes: ['us'] // Uncomment to limit to US only
+      });
+    } else if (endpoint === 'university-search') {
+      // Special endpoint for university/college search
+      url = new URL('https://places.googleapis.com/v1/places:searchText');
+      headers = {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': API_KEY,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.photos'
+      };
+      method = 'POST';
+      // Add "university" or "college" to the query if not present
+      let searchQuery = queryParams.query;
+      if (!searchQuery.toLowerCase().includes('university') && !searchQuery.toLowerCase().includes('college')) {
+        searchQuery = `${searchQuery} university`;
+      }
+      body = JSON.stringify({
+        textQuery: searchQuery,
+        includedType: 'university', // Only return universities
+        maxResultCount: 10
+      });
     } else {
       // Fallback to legacy API for other endpoints
       url = new URL(`https://maps.googleapis.com/maps/api/place/${endpoint}/json`);

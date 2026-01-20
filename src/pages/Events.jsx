@@ -43,25 +43,9 @@ export default function Events() {
   }, [category, timeWindow, sortBy, userLocation, radius]);
 
   const getUserLocation = () => {
-    if (!navigator.geolocation) {
-      // Fallback to campus location if geolocation not supported
-      fetchCampusLocation();
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
-        setLocationError(null);
-      },
-      (error) => {
-        console.warn('Geolocation denied or failed, falling back to campus location:', error);
-        fetchCampusLocation();
-      }
-    );
+    // App is campus-centered, not user-location centered
+    // Always use the user's selected campus location for consistent results
+    fetchCampusLocation();
   };
 
   const fetchCampusLocation = async () => {

@@ -4,6 +4,7 @@ import { createPageUrl } from '@/utils';
 import { Heart, Star, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { mapLLMCategoryToSchema } from '@/api/llmCategorization';
+import { getPlaceImageUrl } from '@/utils/imageFallback';
 
 export default function PlaceRowCard({ place, onSave, isSaved }) {
   const handleSaveClick = (e) => {
@@ -14,6 +15,9 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
 
   // Get display category: use category if available, otherwise normalize llm_category, fallback to 'Other'
   const displayCategory = place.category || (place.llm_category ? mapLLMCategoryToSchema(place.llm_category) : 'Other');
+  
+  // Get the best available image
+  const imageUrl = getPlaceImageUrl(place, 200);
 
   return (
     <Link
@@ -23,7 +27,7 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
         <div className="flex gap-4">
           <img
-            src={place.image_url || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200'}
+            src={imageUrl}
             alt={place.name}
             className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
           />

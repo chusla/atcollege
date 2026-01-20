@@ -381,6 +381,61 @@ function formatPlaceDetails(result) {
 }
 
 /**
+ * Search for universities/colleges
+ * @param {string} query - Search query (e.g., "tufts")
+ * @returns {Promise<Array>} Array of university results
+ */
+export async function searchUniversities(query) {
+  if (!query || query.length < 2) {
+    return [];
+  }
+
+  const cacheKey = getCacheKey('university-search', { query });
+  const cached = cache.get(cacheKey);
+  if (cached && isCacheValid(cached)) {
+    return cached.data;
+  }
+
+  try {
+    console.log('🎓 [UNIVERSITY SEARCH] Searching for:', query);
+    const data = await makeRequest('university-search', { query });
+    
+    const places = data.places || [];
+    console.log('🎓 [UNIVERSITY SEARCH] Found:', places.length, 'results');
+    
+    const results = places.map(result => {
+      const placeId = result.id;
+      const name = result.displayName?.text || result.name;
+      const address = result.formattedAddress;
+      const location = result.location;
+      const lat = location?.latitude;
+      const lng = location?.longitude;
+      
+      // Get photo URL if available
+      const firstPhoto = result.photos?.[0];
+      const photoName = firstPhoto?.name;
+      const photoUrl = photoName ? getPhotoUrlFromName(photoName, 400) : null;
+      
+      return {
+        google_place_id: placeId,
+        name,
+        address,
+        latitude: lat,
+        longitude: lng,
+        types: result.types || [],
+        photo_url: photoUrl
+      };
+    });
+
+    cache.set(cacheKey, { data: results, timestamp: Date.now() });
+    return results;
+  } catch (error) {
+    console.error('🎓 [UNIVERSITY SEARCH] Error:', error);
+    return [];
+  }
+}
+
+/**
  * Convert miles to meters
  */
 export function milesToMeters(miles) {

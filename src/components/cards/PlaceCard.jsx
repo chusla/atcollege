@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Heart, Star, MapPin } from 'lucide-react';
 import { mapLLMCategoryToSchema } from '@/api/llmCategorization';
+import { getPlaceImageUrl } from '@/utils/imageFallback';
 
 export default function PlaceCard({ place, onSave, isSaved }) {
   const handleSaveClick = (e) => {
@@ -13,6 +14,9 @@ export default function PlaceCard({ place, onSave, isSaved }) {
 
   // Get display category: use category if available, otherwise normalize llm_category, fallback to 'Other'
   const displayCategory = place.category || (place.llm_category ? mapLLMCategoryToSchema(place.llm_category) : 'Other');
+  
+  // Get the best available image (Google photo > existing URL > contextual Unsplash fallback)
+  const imageUrl = getPlaceImageUrl(place, 400);
 
   return (
     <Link
@@ -22,7 +26,7 @@ export default function PlaceCard({ place, onSave, isSaved }) {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all">
         <div className="aspect-[4/5] relative">
           <img
-            src={place.image_url || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400'}
+            src={imageUrl}
             alt={place.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

@@ -9,6 +9,7 @@ import { ArrowLeft, MapPin, Calendar, Clock, Star, Heart, Users, Briefcase } fro
 import { format } from 'date-fns';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import ThreadedComment from '../components/detail/ThreadedComment';
+import { getPlaceImageUrl } from '@/utils/imageFallback';
 
 export default function Detail() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
@@ -190,7 +191,7 @@ export default function Detail() {
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
               <div className="aspect-[16/9] relative">
                 <img
-                  src={item.image_url || 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800'}
+                  src={itemType === 'place' ? getPlaceImageUrl(item, 800) : (item.image_url || 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800')}
                   alt={item.title || item.name}
                   className="w-full h-full object-cover"
                 />
