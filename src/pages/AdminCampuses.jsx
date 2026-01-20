@@ -371,7 +371,14 @@ export default function AdminCampuses() {
                 )}
 
                 {/* Preview card if we have data */}
-                {formData.name && (
+                {formData.name && (() => {
+                  // Use white background for logo if white is one of the school colors
+                  const hasWhite = formData.secondary_color?.toUpperCase() === '#FFFFFF' || 
+                                   formData.primary_color?.toUpperCase() === '#FFFFFF';
+                  const logoBg = hasWhite ? '#FFFFFF' : (formData.secondary_color || '#dbeafe');
+                  const iconColor = hasWhite ? formData.primary_color : (formData.secondary_color || '#2563eb');
+                  
+                  return (
                   <div 
                     className="border rounded-lg p-4 flex items-center gap-4"
                     style={{
@@ -380,17 +387,17 @@ export default function AdminCampuses() {
                     }}
                   >
                     <div 
-                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-200"
                       style={{
-                        backgroundColor: formData.primary_color || '#dbeafe'
+                        backgroundColor: formData.logo_url ? logoBg : (formData.primary_color || '#dbeafe')
                       }}
                     >
                       {formData.logo_url ? (
                         <img src={formData.logo_url} alt="Logo" className="w-10 h-10 object-contain" />
                       ) : fetchingBranding ? (
-                        <Loader2 className="w-5 h-5 animate-spin" style={{ color: formData.secondary_color || '#2563eb' }} />
+                        <Loader2 className="w-5 h-5 animate-spin" style={{ color: iconColor }} />
                       ) : (
-                        <GraduationCap className="w-6 h-6" style={{ color: formData.secondary_color || '#2563eb' }} />
+                        <GraduationCap className="w-6 h-6" style={{ color: iconColor }} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -422,7 +429,7 @@ export default function AdminCampuses() {
                       </div>
                     )}
                   </div>
-                )}
+                )})()}
 
                 <div>
                   <Label htmlFor="name">Campus Name *</Label>
@@ -633,14 +640,21 @@ export default function AdminCampuses() {
                   </TableCell>
                 </TableRow>
               ) : (
-                campuses.map((campus) => (
+                campuses.map((campus) => {
+                  // Use white background for logo if white is one of the school colors
+                  const hasWhite = campus.secondary_color?.toUpperCase() === '#FFFFFF' || 
+                                   campus.primary_color?.toUpperCase() === '#FFFFFF';
+                  const logoBg = hasWhite ? '#FFFFFF' : (campus.secondary_color || '#dbeafe');
+                  const iconColor = hasWhite ? campus.primary_color : (campus.secondary_color || '#2563eb');
+                  
+                  return (
                   <TableRow key={campus.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div 
-                          className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden"
+                          className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200"
                           style={{ 
-                            backgroundColor: campus.primary_color || '#dbeafe',
+                            backgroundColor: campus.logo_url ? logoBg : (campus.primary_color || '#dbeafe'),
                           }}
                         >
                           {campus.logo_url ? (
@@ -652,7 +666,7 @@ export default function AdminCampuses() {
                           ) : (
                             <GraduationCap 
                               className="w-5 h-5" 
-                              style={{ color: campus.secondary_color || '#2563eb' }}
+                              style={{ color: iconColor }}
                             />
                           )}
                         </div>
@@ -701,7 +715,7 @@ export default function AdminCampuses() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                )})
               )}
             </TableBody>
           </Table>

@@ -91,26 +91,34 @@ export default function Layout({ children, currentPageName }) {
                 </Link>
                 
                 {/* Campus Badge */}
-                {selectedCampus && (
+                {selectedCampus && (() => {
+                  // Use white background for logo if white is one of the school colors
+                  const hasWhite = selectedCampus.secondary_color?.toUpperCase() === '#FFFFFF' || 
+                                   selectedCampus.primary_color?.toUpperCase() === '#FFFFFF';
+                  const textColor = hasWhite ? selectedCampus.primary_color : (selectedCampus.secondary_color || 'white');
+                  
+                  return (
                   <div 
                     className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full"
                     style={{ 
                       backgroundColor: selectedCampus.primary_color || '#1e40af',
-                      color: selectedCampus.secondary_color || 'white'
+                      color: textColor
                     }}
                   >
                     {selectedCampus.logo_url ? (
-                      <img 
-                        src={selectedCampus.logo_url} 
-                        alt={selectedCampus.name} 
-                        className="w-5 h-5 object-contain"
-                      />
+                      <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden">
+                        <img 
+                          src={selectedCampus.logo_url} 
+                          alt={selectedCampus.name} 
+                          className="w-5 h-5 object-contain"
+                        />
+                      </div>
                     ) : (
                       <GraduationCap className="w-4 h-4" />
                     )}
                     <span className="text-sm font-medium">{selectedCampus.name}</span>
                   </div>
-                )}
+                )})()}
                 
                 {!selectedCampus && user?.selected_campus_name && (
                   <span className="hidden sm:inline text-sm text-gray-500">
