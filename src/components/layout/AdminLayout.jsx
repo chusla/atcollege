@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, Users, FileText, GraduationCap, Upload, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, GraduationCap, Upload, ArrowLeft, Image } from 'lucide-react';
 
 export default function AdminLayout({ children, active }) {
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, page: 'AdminDashboard' },
     { name: 'Content', icon: FileText, page: 'AdminContent' },
+    { name: 'Media', icon: Image, page: 'AdminMedia' },
     { name: 'Users', icon: Users, page: 'AdminUsers' },
     { name: 'Campuses', icon: GraduationCap, page: 'AdminCampuses' },
     { name: 'Batch Upload', icon: Upload, page: 'AdminBatchUpload' },

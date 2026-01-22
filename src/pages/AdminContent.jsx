@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, Building2, Briefcase, Users, Check, X, Trash2, Sparkles, Filter } from 'lucide-react';
+import { Calendar, Building2, Briefcase, Users, Check, X, Trash2, Sparkles, Filter, Image } from 'lucide-react';
 import AdminLayout from '../components/layout/AdminLayout';
 
 export default function AdminContent() {
@@ -236,6 +236,14 @@ export default function AdminContent() {
                     <Sparkles className="w-4 h-4" />
                   </Button>
                 )}
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => navigate(createPageUrl('AdminMedia') + `?type=${type.toLowerCase() === 'interestgroup' ? 'interest_group' : type.toLowerCase()}&id=${item.id}`)}
+                  title="Manage Images"
+                >
+                  <Image className="w-4 h-4" />
+                </Button>
                 <Button size="sm" variant="destructive" onClick={() => handleDelete(type, item.id)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>

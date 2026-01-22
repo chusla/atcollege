@@ -1,16 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { SiteSetting } from '@/api/entities';
+
+const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920';
 
 export default function HeroSection({ onJoin, onExplore }) {
+  const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
+
+  useEffect(() => {
+    // Load configurable hero image from site settings
+    const loadHeroImage = async () => {
+      try {
+        const hero = await SiteSetting.getHeroImage();
+        if (hero?.url) {
+          setHeroImage(hero.url);
+        }
+      } catch (error) {
+        // Use default if settings not available
+        console.log('Using default hero image');
+      }
+    };
+    loadHeroImage();
+  }, []);
+
   return (
     <div className="relative min-h-[500px] sm:min-h-[550px] md:min-h-[600px] flex items-center justify-center overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0">
         <img
-          src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920"
+          src={heroImage}
           alt="Campus"
           className="w-full h-full object-cover"
+          onError={(e) => {
+            // Fall back to default if custom image fails
+            e.target.src = DEFAULT_HERO_IMAGE;
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-blue-900/70 to-blue-900/90" />
       </div>

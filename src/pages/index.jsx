@@ -8,6 +8,7 @@ import AdminBatchUpload from "./AdminBatchUpload";
 import AdminCampuses from "./AdminCampuses";
 import AdminContent from "./AdminContent";
 import AdminDashboard from "./AdminDashboard";
+import AdminMedia from "./AdminMedia";
 import AdminUsers from "./AdminUsers";
 import AdminPlacesImport from "./AdminPlacesImport";
 import Detail from "./Detail";
@@ -30,6 +31,7 @@ const PAGES = {
     AdminCampuses: AdminCampuses,
     AdminContent: AdminContent,
     AdminDashboard: AdminDashboard,
+    AdminMedia: AdminMedia,
     AdminUsers: AdminUsers,
     AdminPlacesImport: AdminPlacesImport,
     Detail: Detail,
@@ -74,6 +76,7 @@ function PagesContent() {
                 <Route path="/AdminCampuses" element={<AdminCampuses />} />
                 <Route path="/AdminContent" element={<AdminContent />} />
                 <Route path="/AdminDashboard" element={<AdminDashboard />} />
+                <Route path="/AdminMedia" element={<AdminMedia />} />
                 <Route path="/AdminUsers" element={<AdminUsers />} />
                 <Route path="/AdminPlacesImport" element={<AdminPlacesImport />} />
                 <Route path="/Detail" element={<Detail />} />

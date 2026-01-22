@@ -704,6 +704,236 @@ export const Comment = {
   }
 }
 
+// Entity Images - Multiple images per listing
+export const EntityImage = {
+  ...createEntity('entity_images'),
+  
+  // Get all images for an entity
+  async listByEntity(entityType, entityId) {
+    const { data, error } = await supabase
+      .from('entity_images')
+      .select('*')
+      .eq('entity_type', entityType)
+      .eq('entity_id', entityId)
+      .order('is_primary', { ascending: false })
+      .order('sort_order', { ascending: true })
+    
+    if (error) throw error
+    return data || []
+  },
+  
+  // Get primary image for an entity
+  async getPrimary(entityType, entityId) {
+    const { data, error } = await supabase
+      .from('entity_images')
+      .select('*')
+      .eq('entity_type', entityType)
+      .eq('entity_id', entityId)
+      .eq('is_primary', true)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error
+    return data
+  },
+  
+  // Set an image as primary (automatically unsets others via DB trigger)
+  async setPrimary(imageId) {
+    const { data, error } = await supabase
+      .from('entity_images')
+      .update({ is_primary: true })
+      .eq('id', imageId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+  
+  // Add a new image to an entity
+  async addToEntity(entityType, entityId, imageUrl, options = {}) {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const imageData = {
+      entity_type: entityType,
+      entity_id: entityId,
+      image_url: imageUrl,
+      storage_path: options.storagePath || null,
+      caption: options.caption || null,
+      alt_text: options.altText || null,
+      is_primary: options.isPrimary || false,
+      sort_order: options.sortOrder || 0,
+      source: options.source || 'admin',
+      uploaded_by: user?.id || null
+    }
+    
+    const { data, error } = await supabase
+      .from('entity_images')
+      .insert(imageData)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+  
+  // Upload image to storage and add to entity
+  async uploadToEntity(entityType, entityId, file, options = {}) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+    
+    // Generate unique file path
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${entityType}s/${entityId}/${Date.now()}.${fileExt}`
+    
+    // Upload to storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('uploads')
+      .upload(fileName, file)
+    
+    if (uploadError) throw uploadError
+    
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('uploads')
+      .getPublicUrl(fileName)
+    
+    // Create entity_images record
+    return this.addToEntity(entityType, entityId, publicUrl, {
+      storagePath: fileName,
+      isPrimary: options.isPrimary || false,
+      source: options.source || 'admin',
+      caption: options.caption,
+      altText: options.altText
+    })
+  },
+  
+  // Update sort order for multiple images
+  async updateSortOrder(imageUpdates) {
+    const updates = imageUpdates.map(({ id, sortOrder }) =>
+      supabase
+        .from('entity_images')
+        .update({ sort_order: sortOrder })
+        .eq('id', id)
+    )
+    
+    await Promise.all(updates)
+  },
+  
+  // Delete image (and remove from storage if applicable)
+  async deleteImage(imageId) {
+    // Get image first to check storage_path
+    const { data: image, error: fetchError } = await supabase
+      .from('entity_images')
+      .select('*')
+      .eq('id', imageId)
+      .single()
+    
+    if (fetchError) throw fetchError
+    
+    // Delete from storage if it was uploaded
+    if (image.storage_path) {
+      await supabase.storage
+        .from('uploads')
+        .remove([image.storage_path])
+    }
+    
+    // Delete the record
+    const { error } = await supabase
+      .from('entity_images')
+      .delete()
+      .eq('id', imageId)
+    
+    if (error) throw error
+    return true
+  },
+
+  // Migrate existing image_url to entity_images table
+  async migrateEntityImage(entityType, entityId, imageUrl) {
+    if (!imageUrl) return null
+    
+    // Check if already migrated
+    const existing = await this.listByEntity(entityType, entityId)
+    if (existing.some(img => img.image_url === imageUrl)) {
+      return existing.find(img => img.image_url === imageUrl)
+    }
+    
+    // Add as primary
+    return this.addToEntity(entityType, entityId, imageUrl, {
+      isPrimary: true,
+      source: 'import'
+    })
+  }
+}
+
+// Site Settings - Configurable app settings
+export const SiteSetting = {
+  ...createEntity('site_settings'),
+  
+  // Get a setting by key
+  async getByKey(key) {
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('*')
+      .eq('setting_key', key)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error
+    return data
+  },
+  
+  // Get setting value (parsed from JSONB)
+  async getValue(key, defaultValue = null) {
+    const setting = await this.getByKey(key)
+    return setting?.setting_value ?? defaultValue
+  },
+  
+  // Set a setting (upsert)
+  async setValue(key, value, description = null) {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const { data, error } = await supabase
+      .from('site_settings')
+      .upsert({
+        setting_key: key,
+        setting_value: value,
+        description: description,
+        updated_by: user?.id
+      }, {
+        onConflict: 'setting_key'
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+  
+  // Get all settings
+  async getAll() {
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('*')
+      .order('setting_key')
+    
+    if (error) throw error
+    return data || []
+  },
+  
+  // Helper: Get hero image config
+  async getHeroImage() {
+    return this.getValue('hero_image', {
+      url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920',
+      alt: 'Campus',
+      source: 'unsplash'
+    })
+  },
+  
+  // Helper: Set hero image
+  async setHeroImage(url, alt = 'Campus', source = 'admin') {
+    return this.setValue('hero_image', { url, alt, source }, 'Landing page hero background image')
+  }
+}
+
 // User/Auth helper that mimics Base44's auth API
 export const User = {
   // Check if user is authenticated
@@ -810,6 +1040,8 @@ export default {
   SavedItem,
   SearchQuery,
   Comment,
-  User
+  User,
+  EntityImage,
+  SiteSetting
 }
 
