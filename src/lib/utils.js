@@ -10,19 +10,25 @@ export function cn(...inputs) {
  * Returns a value between 0 (black) and 1 (white)
  */
 export function getLuminance(hexColor) {
-  if (!hexColor || !hexColor.startsWith('#')) return 0.5;
+  if (!hexColor) return 0.5;
   
-  // Remove # and parse
-  const hex = hexColor.replace('#', '');
+  // Remove # if present and normalize
+  let hex = hexColor.toString().trim().replace('#', '');
   
-  // Handle 3-char hex
-  const fullHex = hex.length === 3 
-    ? hex.split('').map(c => c + c).join('')
-    : hex;
+  // Handle 3-char hex (e.g., "FFF" -> "FFFFFF")
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join('');
+  }
   
-  const r = parseInt(fullHex.substr(0, 2), 16) / 255;
-  const g = parseInt(fullHex.substr(2, 2), 16) / 255;
-  const b = parseInt(fullHex.substr(4, 2), 16) / 255;
+  // Validate hex length
+  if (hex.length !== 6) return 0.5;
+  
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+  
+  // Check for NaN (invalid hex)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return 0.5;
   
   // Apply gamma correction for more accurate perception
   const rLinear = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
