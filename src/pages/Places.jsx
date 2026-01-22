@@ -37,7 +37,7 @@ export default function Places() {
   const urlParams = new URLSearchParams(window.location.search);
   const [searchQuery, setSearchQuery] = useState(urlParams.get('search') || '');
   const [category, setCategory] = useState(urlParams.get('category') || 'all');
-  const [radius, setRadius] = useState(urlParams.get('radius') || 'any');
+  const [radius, setRadius] = useState(urlParams.get('radius') || '5');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [sortBy, setSortBy] = useState('highest');
   const [userLocation, setUserLocation] = useState(null);
@@ -517,12 +517,12 @@ export default function Places() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="any">Any distance</SelectItem>
                     <SelectItem value="1">1 mile</SelectItem>
                     <SelectItem value="2">2 miles</SelectItem>
                     <SelectItem value="5">5 miles</SelectItem>
                     <SelectItem value="10">10 miles</SelectItem>
                     <SelectItem value="20">20 miles</SelectItem>
+                    <SelectItem value="any">Any distance</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

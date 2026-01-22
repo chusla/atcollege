@@ -24,7 +24,7 @@ export default function Opportunities() {
   const urlParams = new URLSearchParams(window.location.search);
   const [type, setType] = useState(urlParams.get('type') || 'all');
   const [timeWindow, setTimeWindow] = useState(urlParams.get('timeWindow') || 'any');
-  const [radius, setRadius] = useState(urlParams.get('radius') || 'any');
+  const [radius, setRadius] = useState(urlParams.get('radius') || '5');
   const [sortBy, setSortBy] = useState('oldest');
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
@@ -306,12 +306,12 @@ export default function Opportunities() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="any">Any distance</SelectItem>
                     <SelectItem value="1">1 mile</SelectItem>
                     <SelectItem value="2">2 miles</SelectItem>
                     <SelectItem value="5">5 miles</SelectItem>
                     <SelectItem value="10">10 miles</SelectItem>
                     <SelectItem value="20">20 miles</SelectItem>
+                    <SelectItem value="any">Any distance</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -4,6 +4,7 @@ import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Campus } from '@/api/entities';
 import { Home, Heart, User, Menu, X, Plus, GraduationCap } from 'lucide-react';
+import { getContrastTextColor } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import AddListingDialog from '../components/listings/AddListingDialog';
 import AuthModal from '../components/auth/AuthModal';
@@ -92,16 +93,15 @@ export default function Layout({ children, currentPageName }) {
                 
                 {/* Campus Badge */}
                 {selectedCampus && (() => {
-                  // Use white background for logo if white is one of the school colors
-                  const hasWhite = selectedCampus.secondary_color?.toUpperCase() === '#FFFFFF' || 
-                                   selectedCampus.primary_color?.toUpperCase() === '#FFFFFF';
-                  const textColor = hasWhite ? selectedCampus.primary_color : (selectedCampus.secondary_color || 'white');
+                  // Calculate contrasting text color based on background luminance
+                  const bgColor = selectedCampus.primary_color || '#1e40af';
+                  const textColor = getContrastTextColor(bgColor);
                   
                   return (
                   <div 
                     className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full"
                     style={{ 
-                      backgroundColor: selectedCampus.primary_color || '#1e40af',
+                      backgroundColor: bgColor,
                       color: textColor
                     }}
                   >

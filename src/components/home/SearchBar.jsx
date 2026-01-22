@@ -99,6 +99,7 @@ export default function SearchBar({ onSearch, initialQuery = '', initialRadius =
               <SelectItem value="2">2 miles</SelectItem>
               <SelectItem value="5">5 miles</SelectItem>
               <SelectItem value="10">10 miles</SelectItem>
+              <SelectItem value="20">20 miles</SelectItem>
               <SelectItem value="all">Any distance</SelectItem>
             </SelectContent>
           </Select>

@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 import AdminLayout from '../components/layout/AdminLayout';
 import UniversitySearch from '../components/admin/UniversitySearch';
 import { fetchUniversityBranding, getWikipediaImageUrl } from '@/utils/wikipediaScraper';
+import { getContrastTextColor } from '@/lib/utils';
 
 export default function AdminCampuses() {
   const navigate = useNavigate();
@@ -372,11 +373,9 @@ export default function AdminCampuses() {
 
                 {/* Preview card if we have data */}
                 {formData.name && (() => {
-                  // Use white background for logo if white is one of the school colors
-                  const hasWhite = formData.secondary_color?.toUpperCase() === '#FFFFFF' || 
-                                   formData.primary_color?.toUpperCase() === '#FFFFFF';
-                  const logoBg = hasWhite ? '#FFFFFF' : (formData.secondary_color || '#dbeafe');
-                  const iconColor = hasWhite ? formData.primary_color : (formData.secondary_color || '#2563eb');
+                  // Calculate contrasting colors based on luminance
+                  const bgColor = formData.primary_color || '#dbeafe';
+                  const iconColor = getContrastTextColor(bgColor);
                   
                   return (
                   <div 
@@ -389,7 +388,7 @@ export default function AdminCampuses() {
                     <div 
                       className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-200"
                       style={{
-                        backgroundColor: formData.logo_url ? logoBg : (formData.primary_color || '#dbeafe')
+                        backgroundColor: formData.logo_url ? '#FFFFFF' : bgColor
                       }}
                     >
                       {formData.logo_url ? (
@@ -641,11 +640,9 @@ export default function AdminCampuses() {
                 </TableRow>
               ) : (
                 campuses.map((campus) => {
-                  // Use white background for logo if white is one of the school colors
-                  const hasWhite = campus.secondary_color?.toUpperCase() === '#FFFFFF' || 
-                                   campus.primary_color?.toUpperCase() === '#FFFFFF';
-                  const logoBg = hasWhite ? '#FFFFFF' : (campus.secondary_color || '#dbeafe');
-                  const iconColor = hasWhite ? campus.primary_color : (campus.secondary_color || '#2563eb');
+                  // Calculate contrasting colors based on luminance
+                  const bgColor = campus.primary_color || '#dbeafe';
+                  const iconColor = getContrastTextColor(bgColor);
                   
                   return (
                   <TableRow key={campus.id}>
@@ -654,7 +651,7 @@ export default function AdminCampuses() {
                         <div 
                           className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200"
                           style={{ 
-                            backgroundColor: campus.logo_url ? logoBg : (campus.primary_color || '#dbeafe'),
+                            backgroundColor: campus.logo_url ? '#FFFFFF' : bgColor,
                           }}
                         >
                           {campus.logo_url ? (
