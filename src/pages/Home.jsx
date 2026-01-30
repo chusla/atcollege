@@ -75,11 +75,30 @@ export default function Home() {
 
   const loadData = async () => {
     try {
+      // Load more groups so we can sort by user interests
       const groupsData = await InterestGroup.filter(
         { status: 'approved' },
-        { orderBy: { column: 'member_count', ascending: false }, limit: 4 }
+        { orderBy: { column: 'member_count', ascending: false }, limit: 20 }
       );
-      setGroups(groupsData || []);
+      
+      // Get user's interests for sorting
+      const userInterests = user?.interests || [];
+      
+      // Sort groups: matching interests first (by member count), then non-matching (by member count)
+      const sortedGroups = (groupsData || []).sort((a, b) => {
+        const aMatches = userInterests.includes(a.category);
+        const bMatches = userInterests.includes(b.category);
+        
+        // If one matches and the other doesn't, prioritize the match
+        if (aMatches && !bMatches) return -1;
+        if (!aMatches && bMatches) return 1;
+        
+        // If both match or both don't, sort by member count (descending)
+        return (b.member_count || 0) - (a.member_count || 0);
+      });
+      
+      // Take top 4 after sorting
+      setGroups(sortedGroups.slice(0, 4));
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {

@@ -170,6 +170,7 @@ export default function Landing() {
         onGoogleSignIn={signInWithGoogle}
         onEmailSignIn={signInWithPassword}
         onEmailSignUp={signUp}
+        initialMode="signup"
       />
       <HeroSection onJoin={handleJoin} onExplore={handleExplore} />
 

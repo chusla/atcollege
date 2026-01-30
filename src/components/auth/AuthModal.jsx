@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, CheckCircle } from 'lucide-react';
 
-export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailSignIn, onEmailSignUp }) {
-  const [mode, setMode] = useState('choose'); // 'choose', 'signin', 'signup', 'confirm'
+export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailSignIn, onEmailSignUp, initialMode = 'choose' }) {
+  const [mode, setMode] = useState(initialMode); // 'choose', 'signin', 'signup', 'confirm'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,7 +20,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
     setConfirmPassword('');
     setError('');
     setLoading(false);
-    setMode('choose');
+    setMode(initialMode);
   };
 
   const handleClose = (open) => {
@@ -166,6 +166,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
+                  autoComplete="email"
                 />
               </div>
               
@@ -178,6 +179,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
+                  autoComplete="current-password"
                 />
               </div>
 
@@ -232,6 +234,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
+                  autoComplete="email"
                 />
               </div>
               
@@ -244,6 +247,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
+                  autoComplete="new-password"
                 />
               </div>
               
@@ -256,6 +260,7 @@ export default function AuthModal({ open, onOpenChange, onGoogleSignIn, onEmailS
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={loading}
+                  autoComplete="new-password"
                 />
               </div>
 
