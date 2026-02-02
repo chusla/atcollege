@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Event, Place, Opportunity, InterestGroup, SavedItem } from '@/api/entities';
+import { Event, Place, Opportunity, InterestGroup, SavedItem, Campus } from '@/api/entities';
 import HeroSection from '../components/home/HeroSection';
 import FeaturedSection from '../components/home/FeaturedSection';
 import EventCard from '../components/cards/EventCard';
@@ -25,6 +25,12 @@ export default function Landing() {
   const [savedOppIds, setSavedOppIds] = useState(new Set());
   const [savedGroupIds, setSavedGroupIds] = useState(new Set());
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [stats, setStats] = useState({
+    campusCount: 0,
+    eventCount: 0,
+    placeCount: 0,
+    groupCount: 0
+  });
 
   // Redirect authenticated users appropriately
   useEffect(() => {
@@ -43,7 +49,29 @@ export default function Landing() {
 
   useEffect(() => {
     loadData();
+    loadStats();
   }, []);
+
+  const loadStats = async () => {
+    try {
+      // Fetch counts for stats bar
+      const [campusesResult, allEventsResult, allPlacesResult, allGroupsResult] = await Promise.allSettled([
+        Campus.list(),
+        Event.list(),
+        Place.list(),
+        InterestGroup.list()
+      ]);
+      
+      setStats({
+        campusCount: campusesResult.status === 'fulfilled' ? (campusesResult.value?.length || 0) : 0,
+        eventCount: allEventsResult.status === 'fulfilled' ? (allEventsResult.value?.length || 0) : 0,
+        placeCount: allPlacesResult.status === 'fulfilled' ? (allPlacesResult.value?.length || 0) : 0,
+        groupCount: allGroupsResult.status === 'fulfilled' ? (allGroupsResult.value?.length || 0) : 0
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
 
   // Load saved items when auth state changes
   useEffect(() => {
@@ -148,10 +176,6 @@ export default function Landing() {
     setAuthModalOpen(true);
   };
 
-  const handleExplore = () => {
-    navigate(createPageUrl('Events'));
-  };
-
   const LoadingSkeleton = () => (
     <>
       {[...Array(4)].map((_, i) => (
@@ -172,10 +196,29 @@ export default function Landing() {
         onEmailSignUp={signUp}
         initialMode="signup"
       />
-      <HeroSection onJoin={handleJoin} onExplore={handleExplore} />
+      <HeroSection onJoin={handleJoin} stats={stats} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
-        {/* Featured Events */}
+        {/* Interest Groups - First */}
+        <FeaturedSection title="Interest Groups" viewAllLink="Groups">
+          {loading ? (
+            <LoadingSkeleton />
+          ) : groups.length > 0 ? (
+            groups.map((group) => (
+              <div key={group.id} className="min-w-[160px] sm:min-w-[180px] md:min-w-[200px] max-w-[160px] sm:max-w-[240px] md:max-w-[280px] flex-shrink-0">
+                <GroupCard 
+                  group={group}
+                  onSave={handleSaveGroup}
+                  isSaved={savedGroupIds.has(group.id)}
+                />
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No groups yet</p>
+          )}
+        </FeaturedSection>
+
+        {/* Featured Events - Second */}
         <FeaturedSection title="Featured Events" viewAllLink="Events">
           {loading ? (
             <LoadingSkeleton />
@@ -194,7 +237,7 @@ export default function Landing() {
           )}
         </FeaturedSection>
 
-        {/* Popular Places */}
+        {/* Popular Places - Third */}
         <FeaturedSection title="Popular Places" viewAllLink="Places">
           {loading ? (
             <LoadingSkeleton />
@@ -213,7 +256,7 @@ export default function Landing() {
           )}
         </FeaturedSection>
 
-        {/* Volunteer / Work */}
+        {/* Volunteer / Work - Fourth */}
         <FeaturedSection title="Volunteer / Work" viewAllLink="Opportunities">
           {loading ? (
             <LoadingSkeleton />
@@ -229,25 +272,6 @@ export default function Landing() {
             ))
           ) : (
             <p className="text-gray-500">No opportunities available</p>
-          )}
-        </FeaturedSection>
-
-        {/* Interest Groups */}
-        <FeaturedSection title="Interest Groups" viewAllLink="Groups">
-          {loading ? (
-            <LoadingSkeleton />
-          ) : groups.length > 0 ? (
-            groups.map((group) => (
-              <div key={group.id} className="min-w-[160px] sm:min-w-[180px] md:min-w-[200px] max-w-[160px] sm:max-w-[240px] md:max-w-[280px] flex-shrink-0">
-                <GroupCard 
-                  group={group}
-                  onSave={handleSaveGroup}
-                  isSaved={savedGroupIds.has(group.id)}
-                />
-              </div>
-            ))
-          ) : (
-            <p className="text-gray-500">No groups yet</p>
           )}
         </FeaturedSection>
       </div>
