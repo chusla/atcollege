@@ -9,6 +9,101 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
 import { ChevronRight, Heart, Users } from 'lucide-react';
 
+// Mapping of user interests to related group categories and keywords
+// Each interest maps to categories and keywords that would indicate relevance
+const INTEREST_TO_CATEGORIES = {
+  'Sports': {
+    categories: ['Sports', 'Athletics', 'Recreation'],
+    keywords: ['sports', 'soccer', 'basketball', 'football', 'baseball', 'tennis', 'volleyball', 'swimming', 'running', 'athletic', 'team', 'intramural', 'league']
+  },
+  'Music': {
+    categories: ['Music', 'Arts', 'Entertainment', 'Performance'],
+    keywords: ['music', 'band', 'choir', 'orchestra', 'singing', 'guitar', 'piano', 'jazz', 'rock', 'a cappella', 'acapella', 'concert', 'musical']
+  },
+  'Arts': {
+    categories: ['Arts', 'Creative', 'Culture', 'Performance'],
+    keywords: ['art', 'arts', 'painting', 'drawing', 'sculpture', 'theater', 'theatre', 'drama', 'dance', 'creative', 'design', 'visual', 'film', 'cinema']
+  },
+  'Technology': {
+    categories: ['Technology', 'Academic', 'Professional', 'STEM'],
+    keywords: ['tech', 'technology', 'coding', 'programming', 'computer', 'software', 'engineering', 'robotics', 'ai', 'data', 'cyber', 'hack', 'developer', 'web', 'app', 'esports', 'gaming']
+  },
+  'Food': {
+    categories: ['Food', 'Culinary', 'Social', 'Culture'],
+    keywords: ['food', 'foodie', 'cooking', 'culinary', 'baking', 'cuisine', 'chef', 'eat', 'dining', 'restaurant', 'recipe', 'gourmet']
+  },
+  'Gaming': {
+    categories: ['Gaming', 'Technology', 'Entertainment', 'Social'],
+    keywords: ['gaming', 'game', 'esports', 'video game', 'board game', 'tabletop', 'chess', 'poker', 'dungeons', 'dragons', 'rpg', 'nintendo', 'playstation', 'xbox']
+  },
+  'Fitness': {
+    categories: ['Fitness', 'Health', 'Sports', 'Wellness'],
+    keywords: ['fitness', 'gym', 'workout', 'exercise', 'yoga', 'pilates', 'crossfit', 'running', 'marathon', 'cycling', 'hiking', 'outdoor', 'health', 'wellness', 'training']
+  },
+  'Reading': {
+    categories: ['Academic', 'Literature', 'Culture', 'Social'],
+    keywords: ['reading', 'book', 'literature', 'writing', 'poetry', 'author', 'library', 'novel', 'fiction', 'literary', 'journal', 'magazine', 'publication']
+  },
+  'Travel': {
+    categories: ['Travel', 'Culture', 'International', 'Social'],
+    keywords: ['travel', 'adventure', 'international', 'study abroad', 'cultural', 'exchange', 'global', 'world', 'explorer', 'backpack', 'tourism']
+  },
+  'Photography': {
+    categories: ['Photography', 'Arts', 'Creative', 'Media'],
+    keywords: ['photo', 'photography', 'camera', 'film', 'video', 'media', 'visual', 'portrait', 'landscape', 'editing', 'lightroom', 'photoshop']
+  },
+  'Volunteering': {
+    categories: ['Volunteering', 'Community', 'Service', 'Social'],
+    keywords: ['volunteer', 'volunteering', 'community', 'service', 'charity', 'nonprofit', 'help', 'outreach', 'humanitarian', 'giving', 'philanthropy', 'social good']
+  }
+};
+
+// Calculate relevance score for a group based on user interests
+const calculateRelevanceScore = (group, userInterests) => {
+  if (!userInterests || userInterests.length === 0) return 0;
+  
+  const groupName = (group.name || '').toLowerCase();
+  const groupCategory = (group.category || '').toLowerCase();
+  const groupDescription = (group.description || '').toLowerCase();
+  
+  let totalScore = 0;
+  
+  for (const interest of userInterests) {
+    const mapping = INTEREST_TO_CATEGORIES[interest];
+    if (!mapping) continue;
+    
+    let interestScore = 0;
+    
+    // Check category match (highest weight)
+    for (const cat of mapping.categories) {
+      if (groupCategory === cat.toLowerCase()) {
+        interestScore += 10;
+        break;
+      }
+    }
+    
+    // Check keyword matches in name (high weight)
+    for (const keyword of mapping.keywords) {
+      if (groupName.includes(keyword)) {
+        interestScore += 5;
+        break; // Only count once per interest
+      }
+    }
+    
+    // Check keyword matches in description (lower weight)
+    for (const keyword of mapping.keywords) {
+      if (groupDescription.includes(keyword)) {
+        interestScore += 2;
+        break; // Only count once per interest
+      }
+    }
+    
+    totalScore += interestScore;
+  }
+  
+  return totalScore;
+};
+
 export default function Home() {
   const navigate = useNavigate();
   const { getCurrentUser, isAuthenticated, isRegistrationComplete, loading: authLoading, profileLoaded } = useAuth();
@@ -38,25 +133,28 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      // Load more groups so we can sort by user interests
+      // Load more groups so we can score and sort by user interests
       const groupsData = await InterestGroup.filter(
         { status: 'approved' },
-        { orderBy: { column: 'member_count', ascending: false }, limit: 20 }
+        { orderBy: { column: 'member_count', ascending: false }, limit: 50 }
       );
       
-      // Get user's interests for sorting
+      // Get user's interests for scoring
       const userInterests = user?.interests || [];
       
-      // Sort groups: matching interests first (by member count), then non-matching (by member count)
-      const sortedGroups = (groupsData || []).sort((a, b) => {
-        const aMatches = userInterests.includes(a.category);
-        const bMatches = userInterests.includes(b.category);
-        
-        // If one matches and the other doesn't, prioritize the match
-        if (aMatches && !bMatches) return -1;
-        if (!aMatches && bMatches) return 1;
-        
-        // If both match or both don't, sort by member count (descending)
+      // Calculate relevance score for each group
+      const scoredGroups = (groupsData || []).map(group => ({
+        ...group,
+        relevanceScore: calculateRelevanceScore(group, userInterests)
+      }));
+      
+      // Sort by: relevance score (descending), then member count (descending)
+      const sortedGroups = scoredGroups.sort((a, b) => {
+        // First sort by relevance score
+        if (b.relevanceScore !== a.relevanceScore) {
+          return b.relevanceScore - a.relevanceScore;
+        }
+        // If same relevance, sort by member count
         return (b.member_count || 0) - (a.member_count || 0);
       });
       
