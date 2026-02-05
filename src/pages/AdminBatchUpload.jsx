@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Event, Place, Opportunity, InterestGroup, Campus } from '@/api/entities';
+import { geocodeAddress } from '@/api/googlePlaces';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
 import AdminLayout from '../components/layout/AdminLayout';
 
 export default function AdminBatchUpload() {
@@ -32,6 +33,51 @@ export default function AdminBatchUpload() {
     }
   }, [authLoading]);
 
+  /**
+   * Process a campus item - geocode address if lat/long not provided
+   * and build the location string from city/state if needed
+   */
+  const processCampusItem = async (item) => {
+    const processedItem = { ...item };
+    
+    // Build location from city + state if not provided
+    if (!processedItem.location && (processedItem.city || processedItem.state)) {
+      const parts = [];
+      if (processedItem.city) parts.push(processedItem.city);
+      if (processedItem.state) parts.push(processedItem.state);
+      processedItem.location = parts.join(', ');
+    }
+    
+    // If latitude/longitude not provided, geocode the address
+    if (!processedItem.latitude || !processedItem.longitude) {
+      // Build search address: prefer name + city + state for universities
+      const searchParts = [];
+      if (processedItem.name) searchParts.push(processedItem.name);
+      if (processedItem.city) searchParts.push(processedItem.city);
+      if (processedItem.state) searchParts.push(processedItem.state);
+      
+      // Fallback to location field
+      const searchAddress = searchParts.length > 0 
+        ? searchParts.join(', ') 
+        : processedItem.location;
+      
+      if (searchAddress) {
+        console.log('📍 Geocoding campus:', searchAddress);
+        const geocoded = await geocodeAddress(searchAddress);
+        
+        if (geocoded && geocoded.lat && geocoded.lng) {
+          processedItem.latitude = geocoded.lat;
+          processedItem.longitude = geocoded.lng;
+          console.log('📍 Geocoded result:', geocoded);
+        } else {
+          console.warn('📍 Could not geocode address:', searchAddress);
+        }
+      }
+    }
+    
+    return processedItem;
+  };
+
   const handleUpload = async () => {
     setUploading(true);
     setResult(null);
@@ -52,20 +98,43 @@ export default function AdminBatchUpload() {
 
       let successCount = 0;
       let errorCount = 0;
+      let errorMessages = [];
+      let geocodedCount = 0;
 
       for (const item of data) {
         try {
-          await entity.create(item);
+          let processedItem = item;
+          
+          // Special processing for campuses - geocode addresses
+          if (entityType === 'campuses') {
+            const needsGeocoding = !item.latitude || !item.longitude;
+            processedItem = await processCampusItem(item);
+            if (needsGeocoding && processedItem.latitude && processedItem.longitude) {
+              geocodedCount++;
+            }
+          }
+          
+          await entity.create(processedItem);
           successCount++;
         } catch (error) {
           console.error('Error creating item:', error);
           errorCount++;
+          errorMessages.push(error.message || 'Unknown error');
         }
       }
 
+      let message = `Successfully created ${successCount} items.`;
+      if (geocodedCount > 0) {
+        message += ` ${geocodedCount} addresses geocoded automatically.`;
+      }
+      if (errorCount > 0) {
+        message += ` ${errorCount} failed.`;
+      }
+
       setResult({
-        success: true,
-        message: `Successfully created ${successCount} items. ${errorCount > 0 ? `${errorCount} failed.` : ''}`
+        success: successCount > 0,
+        message,
+        errors: errorMessages.length > 0 ? errorMessages.slice(0, 3) : null // Show first 3 errors
       });
     } catch (error) {
       setResult({
@@ -119,10 +188,16 @@ export default function AdminBatchUpload() {
 ]`,
     campuses: `[
   {
-    "name": "University of Example",
-    "short_name": "UoE",
-    "city": "Example City",
-    "state": "CA"
+    "name": "Emory University",
+    "short_name": "Emory",
+    "city": "Atlanta",
+    "state": "GA"
+  },
+  {
+    "name": "Massachusetts Institute of Technology",
+    "short_name": "MIT",
+    "city": "Cambridge",
+    "state": "MA"
   }
 ]`
   };
@@ -182,7 +257,16 @@ export default function AdminBatchUpload() {
                 ) : (
                   <AlertCircle className="w-4 h-4 text-red-500" />
                 )}
-                <AlertDescription>{result.message}</AlertDescription>
+                <AlertDescription>
+                  <div>{result.message}</div>
+                  {result.errors && result.errors.length > 0 && (
+                    <ul className="mt-2 text-xs text-red-600 list-disc list-inside">
+                      {result.errors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  )}
+                </AlertDescription>
               </Alert>
             )}
 

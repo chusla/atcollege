@@ -136,6 +136,16 @@ export default async function handler(req, res) {
         includedType: 'university', // Only return universities
         maxResultCount: 10
       });
+    } else if (endpoint === 'geocode') {
+      // Geocoding API - convert address to lat/lng
+      url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+      url.searchParams.append('key', API_KEY);
+      url.searchParams.append('address', queryParams.address);
+      headers = {
+        'User-Agent': 'atcollege-serverless-function/1.0',
+        'Referer': req.headers.referer || req.headers.origin || 'https://atcollege.vercel.app'
+      };
+      method = 'GET';
     } else {
       // Fallback to legacy API for other endpoints
       url = new URL(`https://maps.googleapis.com/maps/api/place/${endpoint}/json`);

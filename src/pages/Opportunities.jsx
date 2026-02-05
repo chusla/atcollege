@@ -78,6 +78,14 @@ export default function Opportunities() {
         filters.type = type.toLowerCase();
       }
 
+      // Campus filter - filter by user's selected campus
+      if (isAuthenticated()) {
+        const user = getCurrentUser();
+        if (user?.selected_campus_id) {
+          filters.campus_id = user.selected_campus_id;
+        }
+      }
+
       // Date window filter based on deadline
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today

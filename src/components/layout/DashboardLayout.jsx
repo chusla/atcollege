@@ -20,22 +20,40 @@ export default function DashboardLayout({ children, active, user }) {
       {/* Mobile Header */}
       <header className="md:hidden bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="flex items-center justify-between px-4 py-3">
-          <Link to={createPageUrl('Landing')} className="flex items-center gap-1">
+          <Link to={createPageUrl('Home')} className="flex items-center gap-1">
             <span className="text-xl font-bold">
               <span className="text-orange-500">at</span>
               <span className="text-blue-900">College</span>
             </span>
           </Link>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100"
-          >
-            {mobileMenuOpen ? (
-              <X className="w-6 h-6 text-gray-600" />
-            ) : (
-              <Menu className="w-6 h-6 text-gray-600" />
-            )}
-          </button>
+          
+          {/* Mobile Navigation - Always visible */}
+          <div className="flex items-center gap-2">
+            <Link 
+              to={createPageUrl('Home')} 
+              className={`p-2 rounded-lg transition-colors ${active === 'Home' ? 'bg-orange-50 text-orange-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              title="Home"
+            >
+              <Home className="w-5 h-5" />
+            </Link>
+            <Link 
+              to={createPageUrl('Saved')} 
+              className={`p-2 rounded-lg transition-colors ${active === 'Saved' ? 'bg-orange-50 text-orange-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              title="Saved"
+            >
+              <Heart className="w-5 h-5" />
+            </Link>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-lg hover:bg-gray-100"
+            >
+              {mobileMenuOpen ? (
+                <X className="w-5 h-5 text-gray-600" />
+              ) : (
+                <Menu className="w-5 h-5 text-gray-600" />
+              )}
+            </button>
+          </div>
         </div>
         
         {/* Mobile Menu Dropdown */}
@@ -82,7 +100,7 @@ export default function DashboardLayout({ children, active, user }) {
         {/* Desktop Sidebar */}
         <aside className="w-64 bg-white border-r border-gray-200 min-h-screen fixed left-0 top-0 hidden md:block">
           <div className="p-6 border-b border-gray-200">
-            <Link to={createPageUrl('Landing')} className="flex items-center gap-1">
+            <Link to={createPageUrl('Home')} className="flex items-center gap-1">
               <span className="text-xl font-bold">
                 <span className="text-orange-500">at</span>
                 <span className="text-blue-900">College</span>

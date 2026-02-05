@@ -84,7 +84,8 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             location: formData.location,
             date: formData.date,
             time: formData.time,
-            created_by: user?.id
+            created_by: user?.id,
+            campus_id: user?.selected_campus_id
           });
           break;
         case 'place':
@@ -93,7 +94,8 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             name: formData.name,
             category: formData.category,
             address: formData.address,
-            created_by: user?.id
+            created_by: user?.id,
+            campus_id: user?.selected_campus_id
           });
           break;
         case 'opportunity':
@@ -104,7 +106,8 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             organization: formData.organization,
             location: formData.location,
             deadline: formData.deadline,
-            created_by: user?.id
+            created_by: user?.id,
+            campus_id: user?.selected_campus_id
           });
           break;
         case 'group':
@@ -113,6 +116,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             name: formData.name,
             category: formData.category,
             created_by: user?.id,
+            campus_id: user?.selected_campus_id,
             member_count: 1
           });
           break;
@@ -229,6 +233,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
                   }}
                   placeholder="Search for a venue..."
                 />
+                <p className="text-xs text-gray-500 mt-1">Type to search, then click on a suggestion from the dropdown</p>
               </div>
             </TabsContent>
 
@@ -264,6 +269,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
                   }}
                   placeholder="Search for address..."
                 />
+                <p className="text-xs text-gray-500 mt-1">Type to search, then click on a suggestion from the dropdown</p>
               </div>
             </TabsContent>
 

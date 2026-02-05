@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, Building2, Briefcase, Users, Check, X, Trash2, Sparkles, Filter, Image } from 'lucide-react';
+import { Calendar, Building2, Briefcase, Users, Check, X, Trash2, Sparkles, Filter, Image, Eye } from 'lucide-react';
 import AdminLayout from '../components/layout/AdminLayout';
 
 export default function AdminContent() {
@@ -21,8 +21,37 @@ export default function AdminContent() {
   const [opportunities, setOpportunities] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all'); // all, pending, approved, rejected
   const [placesFilter, setPlacesFilter] = useState('all'); // all, google_maps, user_submitted
   const [categorizationFilter, setCategorizationFilter] = useState('all'); // all, pending, processing, completed, failed
+
+  // Sort items: pending first, then by date (events/opportunities) or name (places/groups)
+  const sortItems = (items, type) => {
+    return [...items].sort((a, b) => {
+      // Pending items always first
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (b.status === 'pending' && a.status !== 'pending') return 1;
+      
+      // Within same status, sort by date for events/opportunities
+      if (type === 'Event' && a.date && b.date) {
+        return new Date(a.date) - new Date(b.date);
+      }
+      if (type === 'Opportunity' && a.deadline && b.deadline) {
+        return new Date(a.deadline) - new Date(b.deadline);
+      }
+      
+      // For places/groups or items without dates, sort by name
+      const nameA = (a.title || a.name || '').toLowerCase();
+      const nameB = (b.title || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  };
+
+  // Filter items by status
+  const filterByStatus = (items) => {
+    if (statusFilter === 'all') return items;
+    return items.filter(item => item.status === statusFilter);
+  };
 
   useEffect(() => {
     if (!authLoading) {
@@ -42,7 +71,7 @@ export default function AdminContent() {
     if (!authLoading && isAuthenticated() && isAdmin()) {
       loadContent();
     }
-  }, [placesFilter, categorizationFilter]);
+  }, [placesFilter, categorizationFilter, statusFilter]);
 
   const loadContent = async () => {
     try {
@@ -52,32 +81,33 @@ export default function AdminContent() {
         Opportunity.list(),
         InterestGroup.list()
       ]);
-      setEvents(eventsData || []);
+      
+      // Apply status filter and sort (pending first)
+      const filteredEvents = sortItems(filterByStatus(eventsData || []), 'Event');
+      setEvents(filteredEvents);
       
       // Filter places based on selected filters
       let filteredPlaces = placesData || [];
+      filteredPlaces = filterByStatus(filteredPlaces);
       if (placesFilter !== 'all') {
         filteredPlaces = filteredPlaces.filter(p => p.source === placesFilter);
       }
       if (categorizationFilter !== 'all') {
         filteredPlaces = filteredPlaces.filter(p => p.categorization_status === categorizationFilter);
       }
+      setPlaces(sortItems(filteredPlaces, 'Place'));
       
-      setPlaces(filteredPlaces);
-      setOpportunities(oppsData || []);
-      setGroups(groupsData || []);
+      const filteredOpps = sortItems(filterByStatus(oppsData || []), 'Opportunity');
+      setOpportunities(filteredOpps);
+      
+      const filteredGroups = sortItems(filterByStatus(groupsData || []), 'InterestGroup');
+      setGroups(filteredGroups);
     } catch (error) {
       console.error('Error loading content:', error);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!authLoading && isAuthenticated() && isAdmin()) {
-      loadContent();
-    }
-  }, [placesFilter, categorizationFilter]);
 
   const handleApprove = async (type, id) => {
     try {
@@ -216,12 +246,20 @@ export default function AdminContent() {
             )}
             <TableCell>
               <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => navigate(`/detail?type=${type.toLowerCase() === 'interestgroup' ? 'group' : type.toLowerCase()}&id=${item.id}`)}
+                  title="View"
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
                 {item.status === 'pending' && (
                   <>
-                    <Button size="sm" variant="outline" onClick={() => handleApprove(type, item.id)}>
+                    <Button size="sm" variant="outline" onClick={() => handleApprove(type, item.id)} title="Approve">
                       <Check className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleReject(type, item.id)}>
+                    <Button size="sm" variant="outline" onClick={() => handleReject(type, item.id)} title="Reject">
                       <X className="w-4 h-4" />
                     </Button>
                   </>
@@ -232,6 +270,7 @@ export default function AdminContent() {
                     variant="outline"
                     onClick={() => handleCategorize(item.id)}
                     disabled={item.categorization_status === 'processing'}
+                    title="AI Categorize"
                   >
                     <Sparkles className="w-4 h-4" />
                   </Button>
@@ -244,7 +283,7 @@ export default function AdminContent() {
                 >
                   <Image className="w-4 h-4" />
                 </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(type, item.id)}>
+                <Button size="sm" variant="destructive" onClick={() => handleDelete(type, item.id)} title="Delete">
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -293,43 +332,114 @@ export default function AdminContent() {
         <Card>
           <CardContent className="pt-6">
             <TabsContent value="events">
-              <ContentTable items={events} type="Event" />
-            </TabsContent>
-            <TabsContent value="places">
               <div className="mb-4 flex gap-4 items-center">
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-gray-500" />
-                  <Select value={placesFilter} onValueChange={setPlacesFilter}>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-40">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Sources</SelectItem>
-                      <SelectItem value="google_maps">Google Maps</SelectItem>
-                      <SelectItem value="user_submitted">User Submitted</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                <span className="text-sm text-gray-500">
+                  Sorted: Pending first, then by date
+                </span>
+              </div>
+              <ContentTable items={events} type="Event" />
+            </TabsContent>
+            <TabsContent value="places">
+              <div className="mb-4 flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-gray-500" />
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Select value={placesFilter} onValueChange={setPlacesFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="google_maps">Google Maps</SelectItem>
+                    <SelectItem value="user_submitted">User Submitted</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={categorizationFilter} onValueChange={setCategorizationFilter}>
                   <SelectTrigger className="w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="all">All Categorization</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="processing">Processing</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="failed">Failed</SelectItem>
                   </SelectContent>
                 </Select>
+                <span className="text-sm text-gray-500">
+                  Sorted: Pending first, then by name
+                </span>
               </div>
               <ContentTable items={places} type="Place" />
             </TabsContent>
             <TabsContent value="opportunities">
+              <div className="mb-4 flex gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-gray-500" />
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <span className="text-sm text-gray-500">
+                  Sorted: Pending first, then by deadline
+                </span>
+              </div>
               <ContentTable items={opportunities} type="Opportunity" />
             </TabsContent>
             <TabsContent value="groups">
+              <div className="mb-4 flex gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-gray-500" />
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <span className="text-sm text-gray-500">
+                  Sorted: Pending first, then by name
+                </span>
+              </div>
               <ContentTable items={groups} type="InterestGroup" />
             </TabsContent>
           </CardContent>

@@ -79,6 +79,14 @@ export default function Events() {
         filters.category = category.toLowerCase();
       }
 
+      // Campus filter - filter by user's selected campus
+      if (isAuthenticated()) {
+        const user = getCurrentUser();
+        if (user?.selected_campus_id) {
+          filters.campus_id = user.selected_campus_id;
+        }
+      }
+
       // Location filter
       let bbox = null;
       if (radius && radius !== 'any' && userLocation) {

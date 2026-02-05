@@ -149,7 +149,7 @@ export const Campus = {
     const { data, error } = await supabase
       .from('campuses')
       .select('*')
-      .or(`name.ilike.%${query}%,location.ilike.%${query}%`)
+      .or(`name.ilike.%${query}%,location.ilike.%${query}%,short_name.ilike.%${query}%,city.ilike.%${query}%,state.ilike.%${query}%`)
       .limit(limit)
     if (error) throw error
     return data || []

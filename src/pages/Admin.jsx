@@ -10,7 +10,8 @@ import {
   FileText, 
   GraduationCap,
   Upload,
-  MapPin
+  MapPin,
+  Settings
 } from 'lucide-react';
 
 export default function Admin() {
@@ -45,6 +46,7 @@ export default function Admin() {
     { name: 'Users', icon: Users, page: 'AdminUsers', description: 'User management' },
     { name: 'Campuses', icon: GraduationCap, page: 'AdminCampuses', description: 'Campus settings' },
     { name: 'Batch Upload', icon: Upload, page: 'AdminBatchUpload', description: 'Bulk import data' },
+    { name: 'Site Settings', icon: Settings, page: 'AdminSettings', description: 'Edit page content' },
   ];
 
   return (

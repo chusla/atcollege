@@ -34,6 +34,11 @@ export default function SelectCollege() {
         campus.city?.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredCampuses(filtered);
+      // Auto-select if exactly one match
+      if (filtered.length === 1) {
+        setSelectedCampusId(filtered[0].id);
+        setSelectedCampusName(filtered[0].name);
+      }
     } else {
       setFilteredCampuses(campuses);
     }
@@ -102,16 +107,21 @@ export default function SelectCollege() {
           className="bg-white rounded-xl p-8 shadow-sm border border-gray-200"
         >
           {/* Search Bar */}
-          <div className="relative mb-6">
+          <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search universities..."
+              placeholder="Type to filter, then click to select..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
+          
+          {/* Helper text */}
+          <p className="text-sm text-gray-500 mb-4">
+            Click on a university from the list below to select it
+          </p>
 
           {/* Selected Campus Display */}
           {selectedCampusId && (

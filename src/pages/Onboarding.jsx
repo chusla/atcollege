@@ -50,6 +50,11 @@ export default function Onboarding() {
         campus.location?.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredCampuses(filtered);
+      // Auto-select if exactly one match
+      if (filtered.length === 1) {
+        setSelectedCampusId(filtered[0].id);
+        setSelectedCampusName(filtered[0].name);
+      }
     } else {
       setFilteredCampuses(campuses);
     }
@@ -244,16 +249,21 @@ export default function Onboarding() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Your University</h3>
             
             {/* Search Bar */}
-            <div className="relative mb-4">
+            <div className="relative mb-2">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search universities..."
+                placeholder="Type to filter, then click to select..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
+            
+            {/* Helper text */}
+            <p className="text-sm text-gray-500 mb-4">
+              Click on a university from the list below to select it
+            </p>
 
             {/* Selected Campus Display */}
             {selectedCampusId && (

@@ -436,6 +436,57 @@ export async function searchUniversities(query) {
 }
 
 /**
+ * Geocode an address to get latitude and longitude
+ * @param {string} address - Full address or city, state to geocode
+ * @returns {Promise<{lat: number, lng: number, formatted_address: string} | null>} Geocoded location or null
+ */
+export async function geocodeAddress(address) {
+  if (!address) {
+    console.warn('🗺️ [GEOCODE] No address provided');
+    return null;
+  }
+
+  if (!API_KEY) {
+    console.warn('🗺️ [GEOCODE] API key not configured');
+    return null;
+  }
+
+  const cacheKey = getCacheKey('geocode', { address });
+  const cached = cache.get(cacheKey);
+  if (cached && isCacheValid(cached)) {
+    console.log('🗺️ [GEOCODE] Using cached result for:', address);
+    return cached.data;
+  }
+
+  try {
+    console.log('🗺️ [GEOCODE] Geocoding address:', address);
+    const data = await makeRequest('geocode', { address });
+    
+    // Handle both legacy (results) and potential new API formats
+    const results = data.results || [];
+    
+    if (results.length === 0) {
+      console.warn('🗺️ [GEOCODE] No results found for:', address);
+      return null;
+    }
+
+    const location = results[0].geometry?.location;
+    const result = {
+      lat: location?.lat || null,
+      lng: location?.lng || null,
+      formatted_address: results[0].formatted_address || address
+    };
+
+    console.log('🗺️ [GEOCODE] Result:', result);
+    cache.set(cacheKey, { data: result, timestamp: Date.now() });
+    return result;
+  } catch (error) {
+    console.error('🗺️ [GEOCODE] Error geocoding address:', error);
+    return null;
+  }
+}
+
+/**
  * Convert miles to meters
  */
 export function milesToMeters(miles) {
