@@ -10,7 +10,7 @@ import AdminLayout from '../components/layout/AdminLayout';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { isAdmin, isAuthenticated, loading: authLoading } = useAuth();
+  const { isAdmin, isAuthenticated, loading: authLoading, profileLoaded } = useAuth();
   const [stats, setStats] = useState({
     events: 0,
     places: 0,
@@ -22,7 +22,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && profileLoaded) {
       if (!isAuthenticated()) {
         navigate(createPageUrl('Landing'));
         return;
@@ -33,7 +33,7 @@ export default function AdminDashboard() {
       }
       loadStats();
     }
-  }, [authLoading]);
+  }, [authLoading, profileLoaded]);
 
   const loadStats = async () => {
     try {

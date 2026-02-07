@@ -24,7 +24,7 @@ import {
 export default function AdminMedia() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAdmin, isAuthenticated, loading: authLoading } = useAuth();
+  const { isAdmin, isAuthenticated, loading: authLoading, profileLoaded } = useAuth();
   const { toast } = useToast();
   
   const [activeTab, setActiveTab] = useState('landing');
@@ -43,7 +43,7 @@ export default function AdminMedia() {
   const [loadingEntities, setLoadingEntities] = useState(false);
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && profileLoaded) {
       if (!isAuthenticated()) {
         navigate(createPageUrl('Landing'));
         return;
@@ -63,7 +63,7 @@ export default function AdminMedia() {
         loadAndSelectEntity(preselectedType, preselectedId);
       }
     }
-  }, [authLoading]);
+  }, [authLoading, profileLoaded]);
 
   useEffect(() => {
     if (activeTab === 'listings') {

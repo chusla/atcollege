@@ -15,7 +15,7 @@ import AdminLayout from '../components/layout/AdminLayout';
 
 export default function AdminContent() {
   const navigate = useNavigate();
-  const { isAdmin, isAuthenticated, loading: authLoading } = useAuth();
+  const { isAdmin, isAuthenticated, loading: authLoading, profileLoaded } = useAuth();
   const [events, setEvents] = useState([]);
   const [places, setPlaces] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
@@ -54,7 +54,7 @@ export default function AdminContent() {
   };
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && profileLoaded) {
       if (!isAuthenticated()) {
         navigate(createPageUrl('Landing'));
         return;
@@ -65,7 +65,7 @@ export default function AdminContent() {
       }
       loadContent();
     }
-  }, [authLoading]);
+  }, [authLoading, profileLoaded]);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated() && isAdmin()) {

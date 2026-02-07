@@ -18,7 +18,7 @@ import { getContrastTextColor } from '@/lib/utils';
 
 export default function AdminCampuses() {
   const navigate = useNavigate();
-  const { isAdmin, isAuthenticated, loading: authLoading } = useAuth();
+  const { isAdmin, isAuthenticated, loading: authLoading, profileLoaded } = useAuth();
   const { toast } = useToast();
   const [campuses, setCampuses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +40,7 @@ export default function AdminCampuses() {
   const [backfillProgress, setBackfillProgress] = useState(null); // { current, total, name }
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && profileLoaded) {
       if (!isAuthenticated()) {
         navigate(createPageUrl('Landing'));
         return;
@@ -51,7 +51,7 @@ export default function AdminCampuses() {
       }
       loadCampuses();
     }
-  }, [authLoading]);
+  }, [authLoading, profileLoaded]);
 
   const loadCampuses = async () => {
     try {

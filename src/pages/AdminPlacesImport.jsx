@@ -16,7 +16,7 @@ import { Building2, Search, Check, X, Loader2, MapPin } from 'lucide-react';
 
 export default function AdminPlacesImport() {
   const navigate = useNavigate();
-  const { isAdmin, isAuthenticated, loading: authLoading } = useAuth();
+  const { isAdmin, isAuthenticated, loading: authLoading, profileLoaded } = useAuth();
   const [campuses, setCampuses] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('bars');
@@ -27,7 +27,7 @@ export default function AdminPlacesImport() {
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && profileLoaded) {
       if (!isAuthenticated()) {
         navigate(createPageUrl('Landing'));
         return;
@@ -38,7 +38,7 @@ export default function AdminPlacesImport() {
       }
       loadCampuses();
     }
-  }, [authLoading]);
+  }, [authLoading, profileLoaded]);
 
   const loadCampuses = async () => {
     try {

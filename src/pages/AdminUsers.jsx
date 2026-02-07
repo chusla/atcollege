@@ -13,14 +13,14 @@ import AdminLayout from '../components/layout/AdminLayout';
 
 export default function AdminUsers() {
   const navigate = useNavigate();
-  const { isAdmin, isAuthenticated, loading: authLoading, getCurrentUser } = useAuth();
+  const { isAdmin, isAuthenticated, loading: authLoading, profileLoaded, getCurrentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const currentUser = getCurrentUser();
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && profileLoaded) {
       if (!isAuthenticated()) {
         navigate(createPageUrl('Landing'));
         return;
@@ -31,7 +31,7 @@ export default function AdminUsers() {
       }
       loadUsers();
     }
-  }, [authLoading]);
+  }, [authLoading, profileLoaded]);
 
   const loadUsers = async () => {
     try {
