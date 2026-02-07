@@ -23,6 +23,9 @@ web-build/
 .env.*
 !.env.example
 
+# Supabase temp files (may contain connection strings)
+supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
