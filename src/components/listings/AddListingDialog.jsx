@@ -297,6 +297,20 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
                 <Input id="organization" value={formData.organization} onChange={(e) => updateField('organization', e.target.value)} />
               </div>
               <div>
+                <Label htmlFor="location">Location</Label>
+                <PlacesAutocomplete
+                  value={formData.location}
+                  onChange={(value) => updateField('location', value)}
+                  onPlaceSelect={(place) => {
+                    updateField('location', place.address || place.name);
+                    updateField('latitude', place.latitude);
+                    updateField('longitude', place.longitude);
+                  }}
+                  placeholder="Search for a location..."
+                />
+                <p className="text-xs text-gray-500 mt-1">Where is this opportunity located?</p>
+              </div>
+              <div>
                 <Label htmlFor="deadline">Application Deadline</Label>
                 <Input id="deadline" type="date" value={formData.deadline} onChange={(e) => updateField('deadline', e.target.value)} />
               </div>

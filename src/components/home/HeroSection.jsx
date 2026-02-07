@@ -1,32 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { SiteSetting } from '@/api/entities';
 
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920';
+const DEFAULT_HERO_TITLE = 'Social Life in and Around Campus';
+const DEFAULT_HERO_SUBTITLE = 'Discover events, places, opportunities, and groups near your university';
+const DEFAULT_HERO_PRE_TITLE = 'Your College Experience Starts Here';
+const DEFAULT_TAGLINE_BAR = 'atCollege is a real-time network about social life in and around campus ...';
 
-const DEFAULT_HERO_TITLE = 'Discover Your Campus Life';
-const DEFAULT_HERO_SUBTITLE = 'Find events, places, opportunities, and connect with students who share your interests';
-
-export default function HeroSection({ onJoin, stats = {}, heroTitle, heroSubtitle, heroImageUrl }) {
-  const [heroImage, setHeroImage] = useState(heroImageUrl || DEFAULT_HERO_IMAGE);
+export default function HeroSection({ onJoin, stats = {}, heroTitle, heroSubtitle, heroImageUrl, heroPreTitle, taglineBar }) {
+  const heroImage = heroImageUrl || DEFAULT_HERO_IMAGE;
   const { campusCount = 0, eventCount = 0, placeCount = 0, groupCount = 0 } = stats;
-
-  useEffect(() => {
-    if (heroImageUrl) {
-      setHeroImage(heroImageUrl);
-      return;
-    }
-    const loadHeroImage = async () => {
-      try {
-        const hero = await SiteSetting.getHeroImage();
-        if (hero?.url) setHeroImage(hero.url);
-      } catch (error) {
-        console.log('Using default hero image');
-      }
-    };
-    loadHeroImage();
-  }, [heroImageUrl]);
 
   return (
     <section className="relative flex flex-col overflow-hidden">
@@ -52,12 +36,10 @@ export default function HeroSection({ onJoin, stats = {}, heroTitle, heroSubtitl
             transition={{ duration: 0.6 }}
           >
             <p className="text-white/90 text-sm sm:text-base mb-2">
-              Your College Experience Starts Here
+              {heroPreTitle || DEFAULT_HERO_PRE_TITLE}
             </p>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
-              {heroTitle || (
-                <>Discover Your <span className="text-orange-500">Campus Life</span></>
-              )}
+              {heroTitle || DEFAULT_HERO_TITLE}
             </h1>
             <p className="text-white/80 text-sm sm:text-base mb-8 max-w-2xl mx-auto">
               {heroSubtitle || DEFAULT_HERO_SUBTITLE}
@@ -103,8 +85,8 @@ export default function HeroSection({ onJoin, stats = {}, heroTitle, heroSubtitl
 
       {/* Tagline Bar */}
       <div className="bg-gray-800 py-4 text-center">
-        <p className="text-white/80 text-sm sm:text-base">
-          atCollege is a real-time network about social life in and around campus ...
+        <p className="text-white/80 text-sm sm:text-base max-w-3xl mx-auto px-4">
+          {taglineBar || DEFAULT_TAGLINE_BAR}
         </p>
       </div>
     </section>

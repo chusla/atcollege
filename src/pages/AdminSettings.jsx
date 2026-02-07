@@ -21,6 +21,11 @@ export default function AdminSettings() {
 
   // Content settings state
   const [settings, setSettings] = useState({
+    // Landing page branding
+    logo_tagline: 'Social Life in and Around Campus',
+    hero_pre_title: 'Your College Experience Starts Here',
+    tagline_bar: 'atCollege is a real-time network about social life in and around campus ...',
+
     // Landing page hero
     hero_title: 'Social Life in and Around Campus',
     hero_subtitle: 'Discover events, places, opportunities, and groups near your university',
@@ -62,10 +67,24 @@ export default function AdminSettings() {
         settingsObj[s.setting_key] = s.setting_value;
       });
 
+      // If hero_image_url wasn't explicitly set, populate from legacy hero_image object
+      if (!settingsObj.hero_image_url && settingsObj.hero_image?.url) {
+        settingsObj.hero_image_url = settingsObj.hero_image.url;
+      }
+
+      // Only merge known admin keys to avoid saving stale/unrelated DB keys back
+      const adminKeys = Object.keys(settings);
+      const filtered = {};
+      adminKeys.forEach(key => {
+        if (settingsObj[key] !== undefined) {
+          filtered[key] = settingsObj[key];
+        }
+      });
+
       // Merge with defaults
       setSettings(prev => ({
         ...prev,
-        ...settingsObj
+        ...filtered
       }));
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -79,16 +98,26 @@ export default function AdminSettings() {
     setSaveMessage(null);
     
     try {
-      // Save each setting
-      const savePromises = Object.entries(settings).map(([key, value]) => 
-        SiteSetting.setValue(key, value, `Site setting: ${key}`)
+      // Save each setting individually so one failure doesn't block others
+      const results = await Promise.allSettled(
+        Object.entries(settings).map(([key, value]) => 
+          SiteSetting.setValue(key, value, `Site setting: ${key}`)
+        )
       );
       
-      await Promise.all(savePromises);
-      setSaveMessage({ type: 'success', text: 'Settings saved successfully!' });
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.error('Some settings failed to save:', failures.map(f => f.reason?.message || f.reason));
+        setSaveMessage({ 
+          type: 'error', 
+          text: `Failed to save ${failures.length} setting(s): ${failures[0].reason?.message || 'Unknown error'}` 
+        });
+      } else {
+        setSaveMessage({ type: 'success', text: 'Settings saved successfully!' });
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to save settings. Please try again.' });
+      setSaveMessage({ type: 'error', text: `Failed to save settings: ${error.message}` });
     } finally {
       setSaving(false);
     }
@@ -136,6 +165,26 @@ export default function AdminSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
+              <Label htmlFor="logo_tagline">Logo Tagline</Label>
+              <Input
+                id="logo_tagline"
+                value={settings.logo_tagline}
+                onChange={(e) => updateSetting('logo_tagline', e.target.value)}
+                placeholder="Social Life in and Around Campus"
+              />
+              <p className="text-xs text-gray-500 mt-1">→ Shown next to the <strong>atCollege</strong> logo in the top-left of the <strong>Landing page</strong></p>
+            </div>
+            <div>
+              <Label htmlFor="hero_pre_title">Hero Pre-Title</Label>
+              <Input
+                id="hero_pre_title"
+                value={settings.hero_pre_title}
+                onChange={(e) => updateSetting('hero_pre_title', e.target.value)}
+                placeholder="Your College Experience Starts Here"
+              />
+              <p className="text-xs text-gray-500 mt-1">→ Small text shown above the main hero title on the <strong>Landing page</strong></p>
+            </div>
+            <div>
               <Label htmlFor="hero_title">Hero Title</Label>
               <Input
                 id="hero_title"
@@ -165,6 +214,16 @@ export default function AdminSettings() {
                 placeholder="https://example.com/image.jpg"
               />
               <p className="text-xs text-gray-500 mt-1">→ Background image behind the hero text on the <strong>Landing page</strong></p>
+            </div>
+            <div>
+              <Label htmlFor="tagline_bar">Tagline Bar</Label>
+              <Input
+                id="tagline_bar"
+                value={settings.tagline_bar}
+                onChange={(e) => updateSetting('tagline_bar', e.target.value)}
+                placeholder="atCollege is a real-time network about social life in and around campus ..."
+              />
+              <p className="text-xs text-gray-500 mt-1">→ Text shown in the dark bar below the stats on the <strong>Landing page</strong></p>
             </div>
           </CardContent>
         </Card>

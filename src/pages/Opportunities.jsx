@@ -13,6 +13,14 @@ import { motion } from 'framer-motion';
 import { MapPin, Filter, Briefcase, Calendar, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import { addWeeks, addMonths, format } from 'date-fns';
 
+// Map UI type filter values to database type values (DB uses capitalized values)
+const TYPE_MAP = {
+  volunteer: 'Volunteer',
+  internship: 'Internship',
+  job: 'Work',
+  research: 'Research',
+};
+
 export default function Opportunities() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle, profile } = useAuth();
   const [opportunities, setOpportunities] = useState([]);
@@ -24,7 +32,7 @@ export default function Opportunities() {
   const urlParams = new URLSearchParams(window.location.search);
   const [type, setType] = useState(urlParams.get('type') || 'all');
   const [timeWindow, setTimeWindow] = useState(urlParams.get('timeWindow') || 'any');
-  const [radius, setRadius] = useState(urlParams.get('radius') || '5');
+  const [radius, setRadius] = useState(urlParams.get('radius') || 'any');
   const [sortBy, setSortBy] = useState('oldest');
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
@@ -74,22 +82,15 @@ export default function Opportunities() {
     setLoading(true);
     try {
       const filters = { status: 'approved' };
-      if (type && type !== 'all') {
-        filters.type = type.toLowerCase();
+      if (type && type !== 'all' && TYPE_MAP[type]) {
+        filters.type = TYPE_MAP[type];
       }
 
-      // Campus filter - filter by user's selected campus
-      const user = isAuthenticated() ? getCurrentUser() : null;
-      const campusId = user?.selected_campus_id;
-      if (campusId) {
-        filters.campus_id = campusId;
-      }
-
-      // Geographic constraint: campus center + radius (use 50 mi when "any")
-      const effectiveRadiusMiles = userLocation
-        ? (radius === 'any' || radius === 'all' ? ANY_DISTANCE_RADIUS_MILES : parseFloat(radius))
-        : null;
-      if (userLocation && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
+      // Geographic constraint: campus center + specific radius
+      // Only apply geo filter when a specific radius is selected (not "any")
+      const useGeoFilter = userLocation && radius !== 'any' && radius !== 'all';
+      const effectiveRadiusMiles = useGeoFilter ? parseFloat(radius) : null;
+      if (useGeoFilter && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
         const bbox = getBoundingBox(userLocation.lat, userLocation.lng, effectiveRadiusMiles);
         filters.latitude = [
           { operator: 'gte', value: bbox.minLat },
@@ -141,7 +142,7 @@ export default function Opportunities() {
           ];
           break;
         case 'no_deadline':
-          filters.deadline = null; // Special handling for null
+          // Will be handled as a post-filter since Supabase filter() skips null values
           break;
         case 'any':
         default:
@@ -195,8 +196,13 @@ export default function Opportunities() {
 
       let results = data || [];
 
+      // Post-filter: "No deadline" — only keep items with null deadline
+      if (timeWindow === 'no_deadline') {
+        results = results.filter(opp => !opp.deadline);
+      }
+
       // Post-filter by precise radius (Haversine) and add distance
-      if (userLocation && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
+      if (useGeoFilter && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
         results = filterByRadius(
           results,
           userLocation.lat,

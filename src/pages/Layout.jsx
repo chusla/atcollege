@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Campus } from '@/api/entities';
+import { Campus, SiteSetting } from '@/api/entities';
 import { Home, Heart, User, Menu, X, Plus, GraduationCap } from 'lucide-react';
 import { getContrastTextColor } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ export default function Layout({ children, currentPageName }) {
   const [showAddListing, setShowAddListing] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedCampus, setSelectedCampus] = useState(null);
+  const [logoTagline, setLogoTagline] = useState('Social Life in and Around Campus');
   
   const user = getCurrentUser();
 
@@ -32,6 +33,15 @@ export default function Layout({ children, currentPageName }) {
     };
     loadCampus();
   }, [user?.selected_campus_id]);
+
+  // Load logo tagline setting for Landing page header
+  useEffect(() => {
+    if (currentPageName === 'Landing') {
+      SiteSetting.getValue('logo_tagline', 'Social Life in and Around Campus')
+        .then(val => { if (val) setLogoTagline(val); })
+        .catch(err => console.error('Error loading logo tagline:', err));
+    }
+  }, [currentPageName]);
 
   // Pages that don't need the layout navigation
   const noNavPages = ['Landing', 'SelectCollege', 'Admin'];
@@ -236,7 +246,7 @@ export default function Layout({ children, currentPageName }) {
                   <span className="text-white">College</span>
                 </span>
                 <span className="hidden sm:inline text-sm text-white/80 ml-2">
-                  Social Life in and Around Campus
+                  {logoTagline}
                 </span>
               </div>
               {isAuthenticated() ? (

@@ -58,6 +58,12 @@ export default function Landing() {
       const all = await SiteSetting.getAll();
       const obj = {};
       (all || []).forEach(s => { obj[s.setting_key] = s.setting_value; });
+
+      // If hero_image_url wasn't explicitly set, fall back to legacy hero_image object
+      if (!obj.hero_image_url && obj.hero_image?.url) {
+        obj.hero_image_url = obj.hero_image.url;
+      }
+
       setSiteSettings(obj);
     } catch (e) {
       console.error('Error loading site settings:', e);
@@ -214,6 +220,8 @@ export default function Landing() {
         heroTitle={siteSettings.hero_title}
         heroSubtitle={siteSettings.hero_subtitle}
         heroImageUrl={siteSettings.hero_image_url}
+        heroPreTitle={siteSettings.hero_pre_title}
+        taglineBar={siteSettings.tagline_bar}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
