@@ -169,44 +169,89 @@ export default function AdminCampuses() {
     setDialogOpen(true);
   };
 
-  // Backfill branding for all campuses missing colors/logo
-  const handleBackfillBranding = async () => {
-    const campusesNeedingBranding = campuses.filter(c => !c.primary_color || !c.logo_url);
+  // Geocode a campus name/location to get lat/lng using Google Maps JS SDK
+  const geocodeCampus = (campusName, campusLocation) => {
+    return new Promise((resolve) => {
+      if (!window.google?.maps?.Geocoder) {
+        resolve(null);
+        return;
+      }
+      const geocoder = new window.google.maps.Geocoder();
+      const query = campusLocation ? `${campusName}, ${campusLocation}` : campusName;
+      geocoder.geocode({ address: query }, (results, status) => {
+        if (status === 'OK' && results?.[0]?.geometry?.location) {
+          resolve({
+            latitude: results[0].geometry.location.lat(),
+            longitude: results[0].geometry.location.lng(),
+          });
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  };
+
+  // Backfill branding AND coordinates for campuses missing data
+  const handleBackfillAll = async () => {
+    const needsBranding = campuses.filter(c => !c.primary_color || !c.logo_url);
+    const needsCoords = campuses.filter(c => !c.latitude || !c.longitude);
+    const needsAnything = campuses.filter(c => !c.primary_color || !c.logo_url || !c.latitude || !c.longitude);
     
-    if (campusesNeedingBranding.length === 0) {
+    if (needsAnything.length === 0) {
       toast({
         title: "All set!",
-        description: "All campuses already have branding data.",
+        description: "All campuses already have branding and coordinates.",
       });
       return;
     }
 
+    const parts = [];
+    if (needsBranding.length > 0) parts.push(`branding for ${needsBranding.length}`);
+    if (needsCoords.length > 0) parts.push(`coordinates for ${needsCoords.length}`);
+
     const confirmed = window.confirm(
-      `This will fetch branding from Wikipedia for ${campusesNeedingBranding.length} campus(es). Continue?`
+      `This will fetch ${parts.join(' and ')} campus(es). Continue?`
     );
     if (!confirmed) return;
 
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < campusesNeedingBranding.length; i++) {
-      const campus = campusesNeedingBranding[i];
-      setBackfillProgress({ current: i + 1, total: campusesNeedingBranding.length, name: campus.name });
+    for (let i = 0; i < needsAnything.length; i++) {
+      const campus = needsAnything[i];
+      setBackfillProgress({ current: i + 1, total: needsAnything.length, name: campus.name });
 
       try {
-        console.log(`🎓 Backfilling branding for: ${campus.name}`);
-        const branding = await fetchUniversityBranding(campus.name);
-        
-        if (branding.primaryColor || branding.logoUrl) {
-          await Campus.update(campus.id, {
-            primary_color: branding.primaryColor || campus.primary_color,
-            secondary_color: branding.secondaryColor || campus.secondary_color,
-            logo_url: branding.logoUrl ? getWikipediaImageUrl(branding.logoUrl, 200) : campus.logo_url
-          });
+        const updates = {};
+
+        // Backfill branding if missing
+        if (!campus.primary_color || !campus.logo_url) {
+          console.log(`🎨 Backfilling branding for: ${campus.name}`);
+          const branding = await fetchUniversityBranding(campus.name);
+          if (branding.primaryColor) updates.primary_color = branding.primaryColor;
+          if (branding.secondaryColor) updates.secondary_color = branding.secondaryColor;
+          if (branding.logoUrl) updates.logo_url = getWikipediaImageUrl(branding.logoUrl, 200);
+        }
+
+        // Backfill coordinates if missing
+        if (!campus.latitude || !campus.longitude) {
+          console.log(`📍 Geocoding: ${campus.name}`);
+          const coords = await geocodeCampus(campus.name, campus.location);
+          if (coords) {
+            updates.latitude = coords.latitude;
+            updates.longitude = coords.longitude;
+            console.log(`📍 Got coordinates for ${campus.name}: ${coords.latitude}, ${coords.longitude}`);
+          } else {
+            console.log(`⚠️ No coordinates found for ${campus.name}`);
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await Campus.update(campus.id, updates);
           successCount++;
-          console.log(`✅ Updated ${campus.name}:`, branding);
+          console.log(`✅ Updated ${campus.name}:`, updates);
         } else {
-          console.log(`⚠️ No branding found for ${campus.name}`);
+          console.log(`⚠️ No data found for ${campus.name}`);
           failCount++;
         }
 
@@ -219,12 +264,11 @@ export default function AdminCampuses() {
     }
 
     setBackfillProgress(null);
-    loadCampuses(); // Reload the list
+    loadCampuses();
 
     toast({
       title: "Backfill complete!",
       description: `Updated ${successCount} campus(es). ${failCount > 0 ? `${failCount} failed.` : ''}`,
-      variant: failCount > 0 ? "default" : "default"
     });
   };
 
@@ -302,7 +346,7 @@ export default function AdminCampuses() {
         <div className="flex items-center gap-2">
           <Button 
             variant="outline" 
-            onClick={handleBackfillBranding}
+            onClick={handleBackfillAll}
             disabled={backfillProgress !== null}
           >
             {backfillProgress ? (
@@ -313,7 +357,7 @@ export default function AdminCampuses() {
             ) : (
               <>
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Backfill Branding
+                Backfill Missing Data
               </>
             )}
           </Button>
