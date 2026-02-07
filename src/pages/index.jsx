@@ -73,26 +73,26 @@ function PagesContent() {
             <Layout currentPageName={currentPage}>
                 <Routes>            
                 <Route path="/" element={<Landing />} />
-                <Route path="/Admin" element={<Admin />} />
-                <Route path="/AdminBatchUpload" element={<AdminBatchUpload />} />
-                <Route path="/AdminCampuses" element={<AdminCampuses />} />
-                <Route path="/AdminContent" element={<AdminContent />} />
-                <Route path="/AdminDashboard" element={<AdminDashboard />} />
-                <Route path="/AdminMedia" element={<AdminMedia />} />
-                <Route path="/AdminSettings" element={<AdminSettings />} />
-                <Route path="/AdminUsers" element={<AdminUsers />} />
-                <Route path="/AdminPlacesImport" element={<AdminPlacesImport />} />
-                <Route path="/Detail" element={<Detail />} />
-                <Route path="/Events" element={<Events />} />
-                <Route path="/Groups" element={<Groups />} />
-                <Route path="/Home" element={<Home />} />
-                <Route path="/Landing" element={<Landing />} />
-                <Route path="/Opportunities" element={<Opportunities />} />
-                <Route path="/Places" element={<Places />} />
-                <Route path="/Profile" element={<Profile />} />
-                <Route path="/Saved" element={<Saved />} />
-                <Route path="/SelectCollege" element={<SelectCollege />} />
-                <Route path="/Onboarding" element={<Onboarding />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/adminbatchupload" element={<AdminBatchUpload />} />
+                <Route path="/admincampuses" element={<AdminCampuses />} />
+                <Route path="/admincontent" element={<AdminContent />} />
+                <Route path="/admindashboard" element={<AdminDashboard />} />
+                <Route path="/adminmedia" element={<AdminMedia />} />
+                <Route path="/adminsettings" element={<AdminSettings />} />
+                <Route path="/adminusers" element={<AdminUsers />} />
+                <Route path="/adminplacesimport" element={<AdminPlacesImport />} />
+                <Route path="/detail" element={<Detail />} />
+                <Route path="/events" element={<Events />} />
+                <Route path="/groups" element={<Groups />} />
+                <Route path="/home" element={<Home />} />
+                <Route path="/landing" element={<Landing />} />
+                <Route path="/opportunities" element={<Opportunities />} />
+                <Route path="/places" element={<Places />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/saved" element={<Saved />} />
+                <Route path="/selectcollege" element={<SelectCollege />} />
+                <Route path="/onboarding" element={<Onboarding />} />
                 </Routes>
             </Layout>
         </>

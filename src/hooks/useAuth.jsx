@@ -85,9 +85,9 @@ export function AuthProvider({ children }) {
     if (authRedirectPages.includes(currentPath)) {
       // Check if user has completed onboarding (has selected campus)
       if (!userProfile?.selected_campus_id || !userProfile?.registration_complete) {
-        window.location.href = '/Onboarding'
+        window.location.href = '/onboarding'
       } else {
-        window.location.href = '/Home'
+        window.location.href = '/home'
       }
     }
   }
@@ -95,9 +95,9 @@ export function AuthProvider({ children }) {
   // Get redirect destination for authenticated user (used by components)
   const getAuthRedirectPath = (userProfile) => {
     if (!userProfile?.selected_campus_id || !userProfile?.registration_complete) {
-      return '/Onboarding'
+      return '/onboarding'
     }
-    return '/Home'
+    return '/home'
   }
 
   // Initialize auth state
@@ -178,13 +178,17 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  // Get current user with profile merged
+  // Get current user with profile merged (use campus_id as fallback for selected_campus_id)
   const getCurrentUser = () => {
     if (!user) return null
+    const p = profile || {}
     return {
       id: user.id,
       email: user.email,
-      ...profile
+      ...p,
+      // So Events/Places/Opportunities work: prefer selected_campus_id, fallback to campus_id
+      selected_campus_id: p.selected_campus_id ?? p.campus_id,
+      selected_campus_name: p.selected_campus_name
     }
   }
 

@@ -1,3 +1,8 @@
+/** Default radius in miles for listing pages (Events, Places, Opportunities) to limit results */
+export const DEFAULT_RADIUS_MILES = 5;
+/** Radius in miles when user explicitly selects "Any distance" */
+export const ANY_DISTANCE_RADIUS_MILES = 50;
+
 /**
  * Calculate distance between two coordinates using Haversine formula
  * @param {number} lat1 - Latitude of first point

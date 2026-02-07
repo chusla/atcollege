@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Opportunity, SavedItem, Campus } from '@/api/entities';
-import { getBoundingBox, filterByRadius } from '@/utils/geo';
+import { getBoundingBox, filterByRadius, ANY_DISTANCE_RADIUS_MILES } from '@/utils/geo';
 import OpportunityCard from '../components/cards/OpportunityCard';
 import OpportunityRowCard from '../components/results/OpportunityRowCard';
 import ViewToggle from '../components/results/ViewToggle';
@@ -14,7 +14,7 @@ import { MapPin, Filter, Briefcase, Calendar, SlidersHorizontal, ArrowUpDown } f
 import { addWeeks, addMonths, format } from 'date-fns';
 
 export default function Opportunities() {
-  const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
+  const { isAuthenticated, getCurrentUser, signInWithGoogle, profile } = useAuth();
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
@@ -29,12 +29,12 @@ export default function Opportunities() {
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
 
+  // Always fetch campus location when user has a campus (geographic constraint)
   useEffect(() => {
-    // If radius is set, we need location
-    if (radius && radius !== 'any') {
-      getUserLocation();
+    if (isAuthenticated() && (profile?.selected_campus_id ?? profile?.campus_id)) {
+      fetchCampusLocation();
     }
-  }, [radius]);
+  }, [isAuthenticated(), profile?.selected_campus_id, profile?.campus_id]);
 
   useEffect(() => {
     loadOpportunities();
@@ -79,11 +79,26 @@ export default function Opportunities() {
       }
 
       // Campus filter - filter by user's selected campus
-      if (isAuthenticated()) {
-        const user = getCurrentUser();
-        if (user?.selected_campus_id) {
-          filters.campus_id = user.selected_campus_id;
-        }
+      const user = isAuthenticated() ? getCurrentUser() : null;
+      const campusId = user?.selected_campus_id;
+      if (campusId) {
+        filters.campus_id = campusId;
+      }
+
+      // Geographic constraint: campus center + radius (use 50 mi when "any")
+      const effectiveRadiusMiles = userLocation
+        ? (radius === 'any' || radius === 'all' ? ANY_DISTANCE_RADIUS_MILES : parseFloat(radius))
+        : null;
+      if (userLocation && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
+        const bbox = getBoundingBox(userLocation.lat, userLocation.lng, effectiveRadiusMiles);
+        filters.latitude = [
+          { operator: 'gte', value: bbox.minLat },
+          { operator: 'lte', value: bbox.maxLat }
+        ];
+        filters.longitude = [
+          { operator: 'gte', value: bbox.minLng },
+          { operator: 'lte', value: bbox.maxLng }
+        ];
       }
 
       // Date window filter based on deadline
@@ -180,13 +195,13 @@ export default function Opportunities() {
 
       let results = data || [];
 
-      // Filter by radius if location is available and radius specified
-      if (userLocation && radius !== 'any' && radius !== 'all') {
+      // Post-filter by precise radius (Haversine) and add distance
+      if (userLocation && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
         results = filterByRadius(
           results,
           userLocation.lat,
           userLocation.lng,
-          parseFloat(radius)
+          effectiveRadiusMiles
         );
       }
 

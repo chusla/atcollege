@@ -74,9 +74,8 @@ export default function Layout({ children, currentPageName }) {
       {/* Top Header */}
       {showNav && (
         <header 
-          className="border-b sticky top-0 z-50 transition-colors"
+          className="border-b sticky top-0 z-50 transition-colors bg-white shadow-sm"
           style={{ 
-            backgroundColor: selectedCampus?.primary_color ? `${selectedCampus.primary_color}10` : 'white',
             borderColor: selectedCampus?.primary_color ? `${selectedCampus.primary_color}30` : '#f3f4f6'
           }}
         >
@@ -98,8 +97,9 @@ export default function Layout({ children, currentPageName }) {
                   const textColor = getContrastTextColor(bgColor);
                   
                   return (
-                  <div 
-                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full"
+                  <Link
+                    to={createPageUrl('Home')}
+                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full hover:opacity-90 transition-opacity"
                     style={{ 
                       backgroundColor: bgColor,
                       color: textColor
@@ -117,7 +117,7 @@ export default function Layout({ children, currentPageName }) {
                       <GraduationCap className="w-4 h-4" />
                     )}
                     <span className="text-sm font-medium">{selectedCampus.name}</span>
-                  </div>
+                  </Link>
                 )})()}
                 
                 {!selectedCampus && user?.selected_campus_name && (

@@ -323,26 +323,80 @@ export function getFallbackImageUrl(place, width = 400, useRandom = false) {
 }
 
 /**
+ * Build proxy URL for Google Place photo via Supabase Edge Function.
+ * Prefers placeId (stable, never expires) over photoName/photoReference (can expire).
+ */
+export function getPlacePhotoProxyUrl(placeId, photoName, photoReference, maxWidth = 400) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) return null;
+  const base = `${supabaseUrl}/functions/v1/place-photo`;
+  // Prefer placeId — the edge function fetches a fresh photo name from Google
+  if (placeId) return `${base}?placeId=${encodeURIComponent(placeId)}&maxWidth=${maxWidth}`;
+  if (photoName) return `${base}?photoName=${encodeURIComponent(photoName)}&maxWidth=${maxWidth}`;
+  if (photoReference) return `${base}?photoReference=${encodeURIComponent(photoReference)}&maxWidth=${maxWidth}`;
+  return null;
+}
+
+/**
+ * Extract the best photo_name or photo_reference from a place object.
+ * Checks top-level fields first (transient from formatPlaceResult),
+ * then digs into google_place_data.photos[] (persisted in DB as JSONB).
+ */
+function extractPhotoRef(place) {
+  // Top-level fields (set by formatPlaceResult / formatPlaceDetails, transient)
+  if (place.photo_name) return { photoName: place.photo_name, photoReference: null };
+  if (place.photo_reference) return { photoName: null, photoReference: place.photo_reference };
+
+  // Dig into google_place_data stored in DB
+  const gpd = place.google_place_data;
+  if (gpd) {
+    // photos array from Google API response (new or legacy)
+    const firstPhoto = gpd.photos?.[0];
+    if (firstPhoto) {
+      if (firstPhoto.name) return { photoName: firstPhoto.name, photoReference: null };
+      if (firstPhoto.photo_reference) return { photoName: null, photoReference: firstPhoto.photo_reference };
+    }
+    // raw_data might also carry photos (some places store the full API response here)
+    const rawFirstPhoto = gpd.raw_data?.photos?.[0];
+    if (rawFirstPhoto) {
+      if (rawFirstPhoto.name) return { photoName: rawFirstPhoto.name, photoReference: null };
+      if (rawFirstPhoto.photo_reference) return { photoName: null, photoReference: rawFirstPhoto.photo_reference };
+    }
+  }
+
+  return { photoName: null, photoReference: null };
+}
+
+/**
  * Get the best available image for a place
- * Priority: Google photo > place.image_url > Unsplash fallback
+ * Priority: Google photo (via proxy) > place.photo_url > image_url > google_place_data.photo_url > Unsplash fallback
  * @param {Object} place - The place object
  * @param {number} width - Desired image width
  * @returns {string} Best available image URL
  */
 export function getPlaceImageUrl(place, width = 400) {
-  // 1. Check if place has a valid image_url (not a placeholder)
-  if (place.image_url && 
+  // 1. Google photo via proxy — prefer stable google_place_id (fetches fresh photo)
+  const googlePlaceId = place.google_place_id || place.google_place_data?.place_id || null;
+  const { photoName, photoReference } = extractPhotoRef(place);
+  const proxyUrl = getPlacePhotoProxyUrl(googlePlaceId, photoName, photoReference, width);
+  if (proxyUrl) return proxyUrl;
+
+  // 2. Direct Google photo_url (from API - may work if key allows referrer)
+  if (place.photo_url) return place.photo_url;
+
+  // 3. Valid stored image_url (not a placeholder)
+  if (place.image_url &&
       !place.image_url.includes('placeholder') &&
-      !place.image_url.includes('unsplash.com/photo-1554118811')) { // Default cafe image
+      !place.image_url.includes('unsplash.com/photo-1554118811')) {
     return place.image_url;
   }
-  
-  // 2. Check Google place data for photos
+
+  // 4. Google place data for photos (e.g. from DB)
   if (place.google_place_data?.photo_url) {
     return place.google_place_data.photo_url;
   }
-  
-  // 3. Fall back to contextual Unsplash image
+
+  // 5. Fall back to contextual Unsplash image
   return getFallbackImageUrl(place, width);
 }
 

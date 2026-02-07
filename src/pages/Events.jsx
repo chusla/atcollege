@@ -1,46 +1,110 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Event, SavedItem, Campus } from '@/api/entities';
-import { getBoundingBox, filterByRadius } from '@/utils/geo';
+import { getBoundingBox, filterByRadius, ANY_DISTANCE_RADIUS_MILES } from '@/utils/geo';
+import { searchPlaces, milesToMeters } from '@/api/googlePlaces';
+import { getPlaceImageUrl } from '@/utils/imageFallback';
 import EventCard from '../components/cards/EventCard';
 import EventRowCard from '../components/results/EventRowCard';
 import ViewToggle from '../components/results/ViewToggle';
 import ResultsMapView from '../components/results/ResultsMapView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Filter, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
+import { Calendar, MapPin, Filter, ArrowUpDown, SlidersHorizontal, Search, ArrowLeft, Building2, Loader2, ExternalLink } from 'lucide-react';
+import { createPageUrl } from '@/utils';
 import { addWeeks, addMonths, format } from 'date-fns';
 
+// Map search keywords to event category (dropdown values: sports, social, academic, cultural, career, workshop; DB also has Shows, Talks, Other)
+const SEARCH_TO_CATEGORY = {
+  concert: 'cultural', concerts: 'cultural', music: 'cultural', show: 'cultural', theater: 'cultural', theatre: 'cultural', performance: 'cultural',
+  game: 'sports', games: 'sports', sport: 'sports', sports: 'sports', soccer: 'sports', basketball: 'sports', football: 'sports', fitness: 'sports', workout: 'sports', yoga: 'sports',
+  talk: 'academic', talks: 'academic', lecture: 'academic', speaker: 'academic', seminar: 'academic',
+  party: 'social', social: 'social', meetup: 'social', networking: 'social', happy: 'social',
+  academic: 'academic', study: 'academic', research: 'academic', class: 'academic', workshop: 'career', career: 'career', job: 'career', internship: 'career',
+  cultural: 'cultural', art: 'cultural', food: 'cultural', volunteer: 'cultural', other: 'cultural'
+};
+
+function searchTermToCategory(searchText) {
+  if (!searchText || !searchText.trim()) return null;
+  const word = searchText.trim().toLowerCase().replace(/\s+/g, ' ');
+  const direct = SEARCH_TO_CATEGORY[word];
+  if (direct) return direct;
+  for (const [key, cat] of Object.entries(SEARCH_TO_CATEGORY)) {
+    if (word.includes(key)) return cat;
+  }
+  return null;
+}
+
 export default function Events() {
-  const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthenticated, getCurrentUser, signInWithGoogle, profile } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
   const [view, setView] = useState('grid');
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const [category, setCategory] = useState(urlParams.get('category') || 'all');
-  // Changed default to 'any'
-  const [timeWindow, setTimeWindow] = useState(urlParams.get('timeWindow') || 'any');
-  const [radius, setRadius] = useState(urlParams.get('radius') || '5');
+  const [category, setCategory] = useState(() => searchParams.get('category') || 'all');
+  const [timeWindow, setTimeWindow] = useState(() => searchParams.get('timeWindow') || 'any');
+  const [radius, setRadius] = useState(() => searchParams.get('radius') || '5');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState('name_asc');
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [googleListings, setGoogleListings] = useState([]);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
 
+  // Sync URL with state when search/category/radius/timeWindow change
   useEffect(() => {
-    // If radius is set, we need location
-    if (radius && radius !== 'any') {
-      getUserLocation();
+    const next = new URLSearchParams(searchParams);
+    if (category && category !== 'all') next.set('category', category); else next.delete('category');
+    if (timeWindow && timeWindow !== 'any') next.set('timeWindow', timeWindow); else next.delete('timeWindow');
+    if (radius && radius !== '5') next.set('radius', radius); else next.delete('radius');
+    if (searchQuery && searchQuery.trim()) next.set('search', searchQuery.trim()); else next.delete('search');
+    setSearchParams(next, { replace: true });
+  }, [category, timeWindow, radius, searchQuery]);
+
+  // When URL has search param on load, optionally set category from search words
+  useEffect(() => {
+    const urlSearch = searchParams.get('search');
+    if (urlSearch && !searchParams.get('category')) {
+      const mapped = searchTermToCategory(urlSearch);
+      if (mapped) setCategory(mapped);
     }
-  }, [radius]);
+  }, []);
+
+  // Always fetch campus location when user has a campus (so results are constrained geographically)
+  useEffect(() => {
+    if (isAuthenticated() && (profile?.selected_campus_id ?? profile?.campus_id)) {
+      fetchCampusLocation();
+    }
+  }, [isAuthenticated(), profile?.selected_campus_id, profile?.campus_id]);
 
   useEffect(() => {
     loadEvents();
     loadSavedItems();
-  }, [category, timeWindow, sortBy, userLocation, radius]);
+  }, [category, timeWindow, sortBy, userLocation, radius, searchQuery]);
+
+  // Load Google Places listings (venues & things to do) to help populate the page
+  useEffect(() => {
+    if (!userLocation) return;
+    const effectiveMiles = radius === 'any' ? ANY_DISTANCE_RADIUS_MILES : parseFloat(radius);
+    const radiusMeters = milesToMeters(effectiveMiles);
+    const query = (searchQuery && searchQuery.trim()) ? searchQuery.trim() : 'events venues things to do';
+    setLoadingGoogle(true);
+    searchPlaces(query, { lat: userLocation.lat, lng: userLocation.lng }, radiusMeters)
+      .then((results) => setGoogleListings(results || []))
+      .catch((err) => {
+        console.warn('Google Places search for events page:', err);
+        setGoogleListings([]);
+      })
+      .finally(() => setLoadingGoogle(false));
+  }, [userLocation, radius, searchQuery]);
 
   const getUserLocation = () => {
     // App is campus-centered, not user-location centered
@@ -75,31 +139,25 @@ export default function Events() {
     setLoading(true);
     try {
       const filters = { status: 'approved' };
-      if (category && category !== 'all') {
-        filters.category = category.toLowerCase();
+      // DB uses PascalCase: Sports, Shows, Talks, Social, Academic, Other
+      const effectiveCategory = category && category !== 'all' ? category : (searchQuery && searchTermToCategory(searchQuery));
+      if (effectiveCategory) {
+        const dbCategory = { sports: 'Sports', social: 'Social', academic: 'Academic', cultural: 'Other', career: 'Academic', workshop: 'Academic' }[effectiveCategory.toLowerCase()] || effectiveCategory;
+        filters.category = dbCategory;
       }
 
-      // Campus filter - filter by user's selected campus
-      if (isAuthenticated()) {
-        const user = getCurrentUser();
-        if (user?.selected_campus_id) {
-          filters.campus_id = user.selected_campus_id;
-        }
+      // Campus filter - show events for user's campus OR events with no campus (legacy)
+      const user = isAuthenticated() ? getCurrentUser() : null;
+      const campusId = user?.selected_campus_id;
+      if (campusId) {
+        filters.campus_id = campusId;
       }
 
-      // Location filter
-      let bbox = null;
-      if (radius && radius !== 'any' && userLocation) {
-        bbox = getBoundingBox(userLocation.lat, userLocation.lng, parseFloat(radius));
-        filters.latitude = [
-          { operator: 'gte', value: bbox.minLat },
-          { operator: 'lte', value: bbox.maxLat }
-        ];
-        filters.longitude = [
-          { operator: 'gte', value: bbox.minLng },
-          { operator: 'lte', value: bbox.maxLng }
-        ];
-      }
+      // Don't filter by lat/lng in the API - many events have no coordinates and would be excluded.
+      // We'll filter by radius client-side and include events without coords so the list isn't empty.
+      const effectiveRadiusMiles = userLocation
+        ? (radius === 'any' ? ANY_DISTANCE_RADIUS_MILES : parseFloat(radius))
+        : null;
 
       // Date window filter
       const today = new Date();
@@ -155,19 +213,30 @@ export default function Events() {
           orderBy = { column: 'title', ascending: true };
       }
 
-      const data = await Event.filter(filters, {
-        orderBy: orderBy,
-        limit: 50 // Increased limit to allow for post-filtering
-      });
+      const opts = { orderBy, limit: 50, searchQuery: searchQuery && searchQuery.trim() ? searchQuery.trim() : undefined };
+      let data = campusId
+        ? await Event.filterWithCampusOrNull(campusId, filters, opts)
+        : await Event.filter(filters, opts);
+      data = data || [];
 
-      let results = data || [];
-
-      // Post-filter by precise radius and add distance
-      if (radius && radius !== 'any' && userLocation) {
-        results = filterByRadius(results, userLocation.lat, userLocation.lng, parseFloat(radius));
+      // When not using campus filter, apply search text client-side (API has no search in generic filter)
+      const q = opts.searchQuery;
+      if (!campusId && q) {
+        const lower = q.toLowerCase();
+        data = data.filter(e => (e.title && e.title.toLowerCase().includes(lower)) || (e.description && e.description.toLowerCase().includes(lower)));
       }
 
-      setEvents(results);
+      // Client-side: events with coords filter by radius; events without coords still show (campus-scoped)
+      let withCoords = (data || []).filter(e => e.latitude != null && e.longitude != null);
+      let withoutCoords = (data || []).filter(e => e.latitude == null || e.longitude == null);
+      if (userLocation && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
+        withCoords = filterByRadius(withCoords, userLocation.lat, userLocation.lng, effectiveRadiusMiles);
+      }
+      const combined = [...withCoords, ...withoutCoords];
+      const byDate = (a, b) => (new Date(a.date) - new Date(b.date));
+      combined.sort((a, b) => byDate(a, b));
+
+      setEvents(combined);
     } catch (error) {
       console.error('Error loading events:', error);
     } finally {
@@ -217,14 +286,31 @@ export default function Events() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+        {/* Header + Search */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Events</h1>
-          <p className="text-gray-600">Discover what's happening in and around campus</p>
+          <p className="text-gray-600 mb-4">Discover what's happening in and around campus</p>
+          <div className="relative max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search by keyword or category (e.g. concert, sports, lecture, social)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 rounded-lg border-gray-200"
+            />
+          </div>
         </motion.div>
 
         {/* Mobile Filter Toggle */}
@@ -372,6 +458,68 @@ export default function Events() {
             </motion.div>
           )
         }
+
+        {/* Venues & things to do from Google (helps populate the page) */}
+        {(userLocation && (googleListings.length > 0 || loadingGoogle)) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-12 pt-8 border-t border-gray-200"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Building2 className="w-5 h-5 text-gray-600" />
+              <h2 className="text-xl font-semibold text-gray-900">Venues & things to do nearby</h2>
+              {loadingGoogle && (
+                <span className="inline-flex items-center gap-1 text-sm text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  From Google…
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Places and venues near campus that might host events. View full details on the Places page.
+            </p>
+            {loadingGoogle ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[...Array(6)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 rounded-xl" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {googleListings.slice(0, 12).map((place) => {
+                  const imageUrl = getPlaceImageUrl(place, 200);
+                  return (
+                  <Link
+                    key={place.google_place_id || place.id || place.name}
+                    to={`${createPageUrl('Places')}?search=${encodeURIComponent(place.name || '')}&radius=${radius}`}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-white hover:bg-gray-50 hover:shadow-sm transition-all text-left"
+                  >
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt=""
+                        className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-gray-100"
+                        onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling?.classList.remove('hidden'); }}
+                      />
+                    ) : null}
+                    <div className={`w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 ${imageUrl ? 'hidden' : ''}`}>
+                      <Building2 className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{place.name}</p>
+                      {place.address && (
+                        <p className="text-xs text-gray-500 truncate">{place.address}</p>
+                      )}
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  </Link>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
       </div >
     </div >
   );

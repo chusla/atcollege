@@ -1,22 +1,27 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import ListingsMap from '@/components/maps/ListingsMap';
+import { useGoogleMaps } from '@/components/maps/GoogleMapsProvider';
 
 export default function ResultsMapView({ items, itemType, center = null, radiusMiles = null }) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  const { isLoaded, loadError } = useGoogleMaps();
   
   // Show placeholder if no API key or no items with coordinates
   const itemsWithCoords = items.filter(item => item.latitude && item.longitude)
   
-  if (!apiKey) {
+  if (!isLoaded) {
     return (
       <Card className="mb-6 overflow-hidden">
         <div className="h-[500px] bg-gray-100 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-gray-500 mb-2">Map View</p>
-            <p className="text-sm text-gray-400">
-              Map not available
-            </p>
+            {loadError ? (
+              <>
+                <p className="text-gray-500 mb-2">Map View</p>
+                <p className="text-sm text-gray-400">Map failed to load</p>
+              </>
+            ) : (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+            )}
           </div>
         </div>
       </Card>

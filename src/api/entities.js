@@ -158,6 +158,48 @@ export const Campus = {
 
 export const Event = {
   ...createEntity('events'),
+  // Filter events by campus OR null campus_id (so legacy/unset events still show)
+  async filterWithCampusOrNull(campusId, filters = {}, options = {}) {
+    const { campus_id: _drop, ...restFilters } = filters
+    let query = supabase
+      .from('events')
+      .select('*')
+      .or(`campus_id.eq.${campusId},campus_id.is.null`)
+    const searchQuery = options.searchQuery && String(options.searchQuery).trim()
+    if (searchQuery) {
+      const q = searchQuery.replace(/'/g, "''")
+      query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`)
+    }
+    Object.entries(restFilters).forEach(([key, value]) => {
+      if (value === undefined || value === null) return
+      const apply = (condition) => {
+        if (typeof condition === 'object' && condition.operator) {
+          switch (condition.operator) {
+            case 'gte': query = query.gte(key, condition.value); break
+            case 'lte': query = query.lte(key, condition.value); break
+            case 'gt': query = query.gt(key, condition.value); break
+            case 'lt': query = query.lt(key, condition.value); break
+            case 'like': query = query.ilike(key, `%${condition.value}%`); break
+            default: query = query.eq(key, condition.value)
+          }
+        } else {
+          query = query.eq(key, condition)
+        }
+      }
+      if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0]?.operator) {
+        value.forEach(apply)
+      } else {
+        apply(value)
+      }
+    })
+    if (options.orderBy) {
+      query = query.order(options.orderBy.column || options.orderBy, { ascending: options.orderBy.ascending ?? true })
+    }
+    if (options.limit) query = query.limit(options.limit)
+    const { data, error } = await query
+    if (error) throw error
+    return data
+  },
   async listFeatured(campusId = null, limit = 6) {
     try {
       const today = new Date().toISOString().split('T')[0]

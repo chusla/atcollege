@@ -3,6 +3,7 @@ import { GoogleMap, OverlayView, InfoWindow } from '@react-google-maps/api'
 import { Link } from 'react-router-dom'
 import { createPageUrl } from '@/utils'
 import { Calendar, MapPin, Star, Users } from 'lucide-react'
+import { useGoogleMaps } from './GoogleMapsProvider'
 
 const containerStyle = {
   width: '100%',
@@ -245,13 +246,15 @@ export default function ListingsMap({
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
-  if (!window.google) {
+  const { isLoaded } = useGoogleMaps()
+
+  if (!isLoaded) {
     return (
       <div 
         className="bg-gray-100 rounded-lg flex items-center justify-center"
         style={{ height }}
       >
-        <p className="text-gray-500">Map loading...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
       </div>
     )
   }

@@ -70,7 +70,8 @@ export default function SelectCollege() {
     setSaving(true);
     try {
       await updateProfile({
-        campus_id: selectedCampusId
+        selected_campus_id: selectedCampusId,
+        selected_campus_name: selectedCampusName
       });
       navigate(createPageUrl('Home'));
     } catch (error) {

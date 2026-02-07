@@ -5,25 +5,28 @@ import { SiteSetting } from '@/api/entities';
 
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920';
 
-export default function HeroSection({ onJoin, stats = {} }) {
-  const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
+const DEFAULT_HERO_TITLE = 'Discover Your Campus Life';
+const DEFAULT_HERO_SUBTITLE = 'Find events, places, opportunities, and connect with students who share your interests';
+
+export default function HeroSection({ onJoin, stats = {}, heroTitle, heroSubtitle, heroImageUrl }) {
+  const [heroImage, setHeroImage] = useState(heroImageUrl || DEFAULT_HERO_IMAGE);
   const { campusCount = 0, eventCount = 0, placeCount = 0, groupCount = 0 } = stats;
 
   useEffect(() => {
-    // Load configurable hero image from site settings
+    if (heroImageUrl) {
+      setHeroImage(heroImageUrl);
+      return;
+    }
     const loadHeroImage = async () => {
       try {
         const hero = await SiteSetting.getHeroImage();
-        if (hero?.url) {
-          setHeroImage(hero.url);
-        }
+        if (hero?.url) setHeroImage(hero.url);
       } catch (error) {
-        // Use default if settings not available
         console.log('Using default hero image');
       }
     };
     loadHeroImage();
-  }, []);
+  }, [heroImageUrl]);
 
   return (
     <section className="relative flex flex-col overflow-hidden">
@@ -52,10 +55,12 @@ export default function HeroSection({ onJoin, stats = {} }) {
               Your College Experience Starts Here
             </p>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
-              Discover Your <span className="text-orange-500">Campus Life</span>
+              {heroTitle || (
+                <>Discover Your <span className="text-orange-500">Campus Life</span></>
+              )}
             </h1>
             <p className="text-white/80 text-sm sm:text-base mb-8 max-w-2xl mx-auto">
-              Find events, places, opportunities, and connect with students who share your interests
+              {heroSubtitle || DEFAULT_HERO_SUBTITLE}
             </p>
             <Button
               onClick={onJoin}

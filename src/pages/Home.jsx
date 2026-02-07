@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { InterestGroup, SavedItem } from '@/api/entities';
+import { InterestGroup, SavedItem, SiteSetting } from '@/api/entities';
 import IntentModule from '../components/explore/IntentModule';
 import GroupCard from '../components/cards/GroupCard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -110,6 +110,7 @@ export default function Home() {
   const [groups, setGroups] = useState([]);
   const [savedGroupIds, setSavedGroupIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
+  const [siteSettings, setSiteSettings] = useState({});
 
   const user = getCurrentUser();
 
@@ -128,8 +129,20 @@ export default function Home() {
         return;
       }
       loadData();
+      loadSiteSettings();
     }
   }, [authLoading, isAuthenticated, isRegistrationComplete, profileLoaded]);
+
+  const loadSiteSettings = async () => {
+    try {
+      const all = await SiteSetting.getAll();
+      const obj = {};
+      (all || []).forEach(s => { obj[s.setting_key] = s.setting_value; });
+      setSiteSettings(obj);
+    } catch (e) {
+      console.error('Error loading site settings:', e);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -257,10 +270,10 @@ export default function Home() {
             Welcome back, {displayName}
           </h1>
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-700 mb-2">
-            What are you up to?
+            {siteSettings.home_welcome_message || 'What are you up to?'}
           </h2>
           <p className="text-gray-500 text-sm">
-            Submit one option. You can always return to this page to submit other options
+            {siteSettings.home_welcome_subtitle || 'Submit one option. You can always return to this page to submit other options'}
           </p>
         </motion.div>
 
@@ -350,7 +363,7 @@ export default function Home() {
         <div className="space-y-6">
           {/* Events Module */}
           <IntentModule
-            title="Featured Events"
+            title={siteSettings.events_section_title || 'Featured Events'}
             prompt="Show me the next events in and around my campus"
             categories={[
               { value: 'all', label: 'All Categories' },
@@ -364,7 +377,7 @@ export default function Home() {
             showTimeWindow={true}
             showRadius={true}
             initialTimeWindow="any"
-            initialRadius="any"
+            initialRadius="5"
             onSubmit={handleEventsSubmit}
             previewImage="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400"
             previewTitle="Concert in Park"
@@ -373,7 +386,7 @@ export default function Home() {
 
           {/* Places Module */}
           <IntentModule
-            title="Popular Places"
+            title={siteSettings.places_section_title || 'Popular Places'}
             prompt="Show me the best places in and around my campus"
             categories={[
               { value: 'all', label: 'All Categories' },
@@ -388,7 +401,7 @@ export default function Home() {
             ]}
             showTimeWindow={false}
             showRadius={true}
-            initialRadius="any"
+            initialRadius="5"
             onSubmit={handlePlacesSubmit}
             previewImage="https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400"
             previewTitle="Campus Café"
@@ -397,7 +410,7 @@ export default function Home() {
 
           {/* Opportunities Module */}
           <IntentModule
-            title="Volunteer / Work"
+            title={siteSettings.opportunities_section_title || 'Volunteer / Work'}
             prompt="Show me opportunities in and around my campus"
             categories={[
               { value: 'all', label: 'All Types' },
@@ -410,7 +423,7 @@ export default function Home() {
             showTimeWindow={true}
             showRadius={true}
             initialTimeWindow="any"
-            initialRadius="any"
+            initialRadius="5"
             onSubmit={handleOpportunitiesSubmit}
             previewImage="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400"
             previewTitle="Meet new friends"

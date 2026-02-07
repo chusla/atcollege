@@ -1,12 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Heart, Star, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { mapLLMCategoryToSchema } from '@/api/llmCategorization';
-import { getPlaceImageUrl } from '@/utils/imageFallback';
+import { getPlaceImageUrl, getFallbackImageUrl } from '@/utils/imageFallback';
 
 export default function PlaceRowCard({ place, onSave, isSaved }) {
+  const primaryUrl = getPlaceImageUrl(place, 200);
+  const [imageUrl, setImageUrl] = useState(primaryUrl);
+
+  const handleImageError = () => {
+    const fallback = getFallbackImageUrl(place, 200);
+    if (imageUrl !== fallback) {
+      setImageUrl(fallback);
+    }
+  };
+
   const handleSaveClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -15,9 +25,6 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
 
   // Get display category: use category if available, otherwise normalize llm_category, fallback to 'Other'
   const displayCategory = place.category || (place.llm_category ? mapLLMCategoryToSchema(place.llm_category) : 'Other');
-  
-  // Get the best available image
-  const imageUrl = getPlaceImageUrl(place, 200);
 
   return (
     <Link
@@ -29,6 +36,7 @@ export default function PlaceRowCard({ place, onSave, isSaved }) {
           <img
             src={imageUrl}
             alt={place.name}
+            onError={handleImageError}
             className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
           />
           <div className="flex-1 min-w-0">

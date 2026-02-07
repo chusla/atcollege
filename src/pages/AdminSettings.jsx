@@ -131,7 +131,7 @@ export default function AdminSettings() {
               Landing Page Hero
             </CardTitle>
             <CardDescription>
-              Edit the main hero section text on the landing page
+              These fields appear on the <strong>Landing page</strong> (first screen visitors see). Edit the main hero section text and background image.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -143,7 +143,7 @@ export default function AdminSettings() {
                 onChange={(e) => updateSetting('hero_title', e.target.value)}
                 placeholder="Social Life in and Around Campus"
               />
-              <p className="text-xs text-gray-500 mt-1">Main headline shown on the landing page</p>
+              <p className="text-xs text-gray-500 mt-1">→ Shown as the large headline on the <strong>Landing page</strong> hero (top of the page)</p>
             </div>
             <div>
               <Label htmlFor="hero_subtitle">Hero Subtitle</Label>
@@ -154,7 +154,7 @@ export default function AdminSettings() {
                 placeholder="Discover events, places, opportunities, and groups..."
                 rows={2}
               />
-              <p className="text-xs text-gray-500 mt-1">Supporting text below the headline</p>
+              <p className="text-xs text-gray-500 mt-1">→ Shown directly under the hero title on the <strong>Landing page</strong></p>
             </div>
             <div>
               <Label htmlFor="hero_image_url">Hero Background Image URL (optional)</Label>
@@ -164,7 +164,7 @@ export default function AdminSettings() {
                 onChange={(e) => updateSetting('hero_image_url', e.target.value)}
                 placeholder="https://example.com/image.jpg"
               />
-              <p className="text-xs text-gray-500 mt-1">Custom background image for the hero section</p>
+              <p className="text-xs text-gray-500 mt-1">→ Background image behind the hero text on the <strong>Landing page</strong></p>
             </div>
           </CardContent>
         </Card>
@@ -177,7 +177,7 @@ export default function AdminSettings() {
               Section Titles
             </CardTitle>
             <CardDescription>
-              Customize the headings for each content section
+              Section titles appear on both the <strong>Landing page</strong> and the <strong>Home page</strong> (logged-in users). Each field controls the heading for that section.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -190,6 +190,7 @@ export default function AdminSettings() {
                   onChange={(e) => updateSetting('events_section_title', e.target.value)}
                   placeholder="Featured Events"
                 />
+                <p className="text-xs text-gray-500 mt-1">→ <strong>Landing</strong> and <strong>Home</strong>: &quot;Events&quot; section title</p>
               </div>
               <div>
                 <Label htmlFor="places_section_title">Places Section</Label>
@@ -199,6 +200,7 @@ export default function AdminSettings() {
                   onChange={(e) => updateSetting('places_section_title', e.target.value)}
                   placeholder="Popular Places"
                 />
+                <p className="text-xs text-gray-500 mt-1">→ <strong>Landing</strong> and <strong>Home</strong>: &quot;Places&quot; section title</p>
               </div>
               <div>
                 <Label htmlFor="opportunities_section_title">Opportunities Section</Label>
@@ -208,6 +210,7 @@ export default function AdminSettings() {
                   onChange={(e) => updateSetting('opportunities_section_title', e.target.value)}
                   placeholder="Volunteer / Work"
                 />
+                <p className="text-xs text-gray-500 mt-1">→ <strong>Landing</strong> and <strong>Home</strong>: &quot;Opportunities&quot; section title</p>
               </div>
               <div>
                 <Label htmlFor="groups_section_title">Groups Section</Label>
@@ -217,6 +220,7 @@ export default function AdminSettings() {
                   onChange={(e) => updateSetting('groups_section_title', e.target.value)}
                   placeholder="Interest Groups"
                 />
+                <p className="text-xs text-gray-500 mt-1">→ <strong>Landing</strong>: &quot;Groups&quot; section title</p>
               </div>
             </div>
           </CardContent>
@@ -230,7 +234,7 @@ export default function AdminSettings() {
               Home Page
             </CardTitle>
             <CardDescription>
-              Edit the welcome message on the home page (for logged-in users)
+              These fields appear only on the <strong>Home page</strong> (after a user is logged in), below &quot;Welcome back, [Name]&quot;.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -242,7 +246,7 @@ export default function AdminSettings() {
                 onChange={(e) => updateSetting('home_welcome_message', e.target.value)}
                 placeholder="What are you up to?"
               />
-              <p className="text-xs text-gray-500 mt-1">Shown below "Welcome back, [Name]"</p>
+              <p className="text-xs text-gray-500 mt-1">→ <strong>Home page</strong>: the line shown directly under &quot;Welcome back, [Name]&quot;</p>
             </div>
             <div>
               <Label htmlFor="home_welcome_subtitle">Welcome Subtitle</Label>
@@ -252,7 +256,7 @@ export default function AdminSettings() {
                 onChange={(e) => updateSetting('home_welcome_subtitle', e.target.value)}
                 placeholder="Submit one option..."
               />
-              <p className="text-xs text-gray-500 mt-1">Additional instruction text</p>
+              <p className="text-xs text-gray-500 mt-1">→ <strong>Home page</strong>: the smaller line under the welcome message</p>
             </div>
           </CardContent>
         </Card>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Event, Place, Opportunity, InterestGroup, SavedItem, Campus } from '@/api/entities';
+import { Event, Place, Opportunity, InterestGroup, SavedItem, Campus, SiteSetting } from '@/api/entities';
 import HeroSection from '../components/home/HeroSection';
 import FeaturedSection from '../components/home/FeaturedSection';
 import EventCard from '../components/cards/EventCard';
@@ -31,8 +31,9 @@ export default function Landing() {
     placeCount: 0,
     groupCount: 0
   });
+  const [siteSettings, setSiteSettings] = useState({});
 
-  // Redirect authenticated users appropriately
+  // Redirect authenticated users who haven't completed registration
   useEffect(() => {
     if (!authLoading && isAuthenticated()) {
       // Wait for profile to load before checking registration
@@ -41,16 +42,27 @@ export default function Landing() {
       }
       if (!isRegistrationComplete()) {
         navigate(createPageUrl('Onboarding'));
-      } else {
-        navigate(createPageUrl('Home'));
       }
+      // Authenticated users with complete registration can still view the landing page
     }
   }, [authLoading, isAuthenticated, isRegistrationComplete, profileLoaded, navigate]);
 
   useEffect(() => {
     loadData();
     loadStats();
+    loadSiteSettings();
   }, []);
+
+  const loadSiteSettings = async () => {
+    try {
+      const all = await SiteSetting.getAll();
+      const obj = {};
+      (all || []).forEach(s => { obj[s.setting_key] = s.setting_value; });
+      setSiteSettings(obj);
+    } catch (e) {
+      console.error('Error loading site settings:', e);
+    }
+  };
 
   const loadStats = async () => {
     try {
@@ -196,11 +208,17 @@ export default function Landing() {
         onEmailSignUp={signUp}
         initialMode="signup"
       />
-      <HeroSection onJoin={handleJoin} stats={stats} />
+      <HeroSection
+        onJoin={handleJoin}
+        stats={stats}
+        heroTitle={siteSettings.hero_title}
+        heroSubtitle={siteSettings.hero_subtitle}
+        heroImageUrl={siteSettings.hero_image_url}
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
         {/* Interest Groups - First */}
-        <FeaturedSection title="Interest Groups" viewAllLink="Groups">
+        <FeaturedSection title={siteSettings.groups_section_title || 'Interest Groups'} viewAllLink="Groups">
           {loading ? (
             <LoadingSkeleton />
           ) : groups.length > 0 ? (
@@ -219,7 +237,7 @@ export default function Landing() {
         </FeaturedSection>
 
         {/* Featured Events - Second */}
-        <FeaturedSection title="Featured Events" viewAllLink="Events">
+        <FeaturedSection title={siteSettings.events_section_title || 'Featured Events'} viewAllLink="Events">
           {loading ? (
             <LoadingSkeleton />
           ) : events.length > 0 ? (
@@ -238,7 +256,7 @@ export default function Landing() {
         </FeaturedSection>
 
         {/* Popular Places - Third */}
-        <FeaturedSection title="Popular Places" viewAllLink="Places">
+        <FeaturedSection title={siteSettings.places_section_title || 'Popular Places'} viewAllLink="Places">
           {loading ? (
             <LoadingSkeleton />
           ) : places.length > 0 ? (
@@ -257,7 +275,7 @@ export default function Landing() {
         </FeaturedSection>
 
         {/* Volunteer / Work - Fourth */}
-        <FeaturedSection title="Volunteer / Work" viewAllLink="Opportunities">
+        <FeaturedSection title={siteSettings.opportunities_section_title || 'Volunteer / Work'} viewAllLink="Opportunities">
           {loading ? (
             <LoadingSkeleton />
           ) : opportunities.length > 0 ? (

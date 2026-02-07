@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Place, SavedItem, Campus } from '@/api/entities';
 import { searchPlaces, getPlaceDetails, milesToMeters } from '@/api/googlePlaces';
-import { filterByRadius, calculateDistance } from '@/utils/geo';
+import { filterByRadius, calculateDistance, ANY_DISTANCE_RADIUS_MILES } from '@/utils/geo';
 import PlaceCard from '../components/cards/PlaceCard';
 import PlaceRowCard from '../components/results/PlaceRowCard';
 import ViewToggle from '../components/results/ViewToggle';
@@ -19,7 +19,7 @@ const PLACES_PAGE_VERSION = '2.3.0-back-button';
 
 export default function Places() {
   const navigate = useNavigate();
-  const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
+  const { isAuthenticated, getCurrentUser, signInWithGoogle, profile } = useAuth();
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
@@ -43,15 +43,16 @@ export default function Places() {
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
 
+  // Always fetch campus location when user has a campus (geographic constraint)
   useEffect(() => {
-    // Reset Google search flag when search query changes
-    googleSearchDone.current = false;
-    
-    // If radius is set OR there's a search query, we need location for filtering/sorting
-    if ((radius && radius !== 'any') || searchQuery) {
-      getUserLocation();
+    if (isAuthenticated() && (profile?.selected_campus_id ?? profile?.campus_id)) {
+      fetchCampusLocation();
     }
-  }, [radius, searchQuery]);
+  }, [isAuthenticated(), profile?.selected_campus_id, profile?.campus_id]);
+
+  useEffect(() => {
+    googleSearchDone.current = false;
+  }, [searchQuery]);
 
   useEffect(() => {
     loadPlaces();
@@ -113,7 +114,9 @@ export default function Places() {
     setLoading(true);
     try {
       let data = [];
-      const radiusMiles = radius === 'any' ? 50 : parseFloat(radius);
+      const radiusMiles = radius === 'any' ? ANY_DISTANCE_RADIUS_MILES : parseFloat(radius);
+      const user = isAuthenticated() ? getCurrentUser() : null;
+      const campusId = user?.selected_campus_id;
 
       // If we have a search query AND location, use the optimized searchNearby
       if (searchQuery && searchQuery.trim() && userLocation) {
@@ -162,6 +165,11 @@ export default function Places() {
             p.address?.toLowerCase().includes(searchLower)
           );
         }
+      }
+
+      // Constrain to user's campus when set (geographic already applied via listNearby center)
+      if (campusId) {
+        data = data.filter(p => p.campus_id === campusId || p.campus_id == null);
       }
 
       // Category filter (applies to all queries)
@@ -287,8 +295,8 @@ export default function Places() {
     });
 
     try {
-      const radiusMeters = radius === 'any' ? 50000 : milesToMeters(parseFloat(radius));
-      const radiusMiles = radius === 'any' ? 50 : parseFloat(radius);
+      const radiusMeters = radius === 'any' ? milesToMeters(ANY_DISTANCE_RADIUS_MILES) : milesToMeters(parseFloat(radius));
+      const radiusMiles = radius === 'any' ? ANY_DISTANCE_RADIUS_MILES : parseFloat(radius);
 
       // Fetch Google Places
       const googleResults = await searchPlaces(searchQuery, userLocation, radiusMeters);

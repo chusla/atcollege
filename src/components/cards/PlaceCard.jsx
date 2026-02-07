@@ -1,11 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Heart, Star, MapPin } from 'lucide-react';
 import { mapLLMCategoryToSchema } from '@/api/llmCategorization';
-import { getPlaceImageUrl } from '@/utils/imageFallback';
+import { getPlaceImageUrl, getFallbackImageUrl } from '@/utils/imageFallback';
 
 export default function PlaceCard({ place, onSave, isSaved }) {
+  const primaryUrl = getPlaceImageUrl(place, 400);
+  const [imageUrl, setImageUrl] = useState(primaryUrl);
+
+  const handleImageError = () => {
+    // If the proxy/primary URL fails, fall back to a contextual Unsplash image
+    const fallback = getFallbackImageUrl(place, 400);
+    if (imageUrl !== fallback) {
+      setImageUrl(fallback);
+    }
+  };
+
   const handleSaveClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -14,9 +25,6 @@ export default function PlaceCard({ place, onSave, isSaved }) {
 
   // Get display category: use category if available, otherwise normalize llm_category, fallback to 'Other'
   const displayCategory = place.category || (place.llm_category ? mapLLMCategoryToSchema(place.llm_category) : 'Other');
-  
-  // Get the best available image (Google photo > existing URL > contextual Unsplash fallback)
-  const imageUrl = getPlaceImageUrl(place, 400);
 
   return (
     <Link
@@ -28,6 +36,7 @@ export default function PlaceCard({ place, onSave, isSaved }) {
           <img
             src={imageUrl}
             alt={place.name}
+            onError={handleImageError}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
 

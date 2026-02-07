@@ -8,16 +8,19 @@ import { Card } from '@/components/ui/card';
 import { ArrowLeft, MapPin, Calendar, Clock, Star, Heart, Users, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 import { GoogleMap, Marker } from '@react-google-maps/api';
+import { useGoogleMaps } from '@/components/maps/GoogleMapsProvider';
 import ThreadedComment from '../components/detail/ThreadedComment';
-import { getPlaceImageUrl } from '@/utils/imageFallback';
+import { getPlaceImageUrl, getFallbackImageUrl } from '@/utils/imageFallback';
 
 export default function Detail() {
   const { isAuthenticated, getCurrentUser, signInWithGoogle } = useAuth();
+  const { isLoaded: mapsLoaded } = useGoogleMaps();
   const [item, setItem] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
+  const [heroImgError, setHeroImgError] = useState(false);
 
   const user = getCurrentUser();
   const urlParams = new URLSearchParams(window.location.search);
@@ -191,8 +194,15 @@ export default function Detail() {
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
               <div className="aspect-[16/9] relative">
                 <img
-                  src={itemType === 'place' ? getPlaceImageUrl(item, 800) : (item.image_url || 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800')}
+                  src={
+                    heroImgError && itemType === 'place'
+                      ? getFallbackImageUrl(item, 800)
+                      : itemType === 'place'
+                        ? getPlaceImageUrl(item, 800)
+                        : (item.image_url || 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800')
+                  }
                   alt={item.title || item.name}
+                  onError={() => { if (itemType === 'place') setHeroImgError(true); }}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -326,7 +336,7 @@ export default function Detail() {
               <Card className="p-4 mb-6">
                 <h3 className="font-semibold text-gray-900 mb-3">Location</h3>
                 <div className="h-64 rounded-lg overflow-hidden bg-gray-100">
-                  {window.google ? (
+                  {mapsLoaded ? (
                     <GoogleMap
                       mapContainerStyle={{ width: '100%', height: '100%' }}
                       center={{ lat: parseFloat(item.latitude), lng: parseFloat(item.longitude) }}

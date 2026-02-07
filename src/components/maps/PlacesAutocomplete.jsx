@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { MapPin, Loader2 } from 'lucide-react'
+import { useGoogleMaps } from './GoogleMapsProvider'
 
 export default function PlacesAutocomplete({
   value = '',
@@ -13,16 +14,16 @@ export default function PlacesAutocomplete({
 }) {
   const inputRef = useRef(null)
   const autocompleteRef = useRef(null)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const { isLoaded: mapsLoaded } = useGoogleMaps()
+  const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
     // Check if Google Maps is loaded
-    if (!window.google?.maps?.places) {
-      console.warn('Google Places API not loaded')
+    if (!mapsLoaded || !window.google?.maps?.places) {
       return
     }
 
-    setIsLoaded(true)
+    setIsReady(true)
 
     // Initialize autocomplete
     const options = {
@@ -71,7 +72,7 @@ export default function PlacesAutocomplete({
         window.google.maps.event.clearInstanceListeners(autocompleteRef.current)
       }
     }
-  }, [bias, onPlaceSelect, onChange])
+  }, [mapsLoaded, bias, onPlaceSelect, onChange])
 
   // Handle manual input change
   const handleInputChange = (e) => {
@@ -80,7 +81,7 @@ export default function PlacesAutocomplete({
     }
   }
 
-  if (!isLoaded && !window.google?.maps?.places) {
+  if (!isReady) {
     return (
       <div className="relative">
         <Input
