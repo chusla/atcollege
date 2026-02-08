@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/api/supabaseClient';
 import { Campus, SiteSetting } from '@/api/entities';
 import { Home, Heart, User, Menu, X, Plus, GraduationCap } from 'lucide-react';
 import { getContrastTextColor } from '@/lib/utils';
@@ -10,11 +11,23 @@ import AddListingDialog from '../components/listings/AddListingDialog';
 import AuthModal from '../components/auth/AuthModal';
 
 export default function Layout({ children, currentPageName }) {
-  const { isAuthenticated, getCurrentUser, signInWithGoogle, signInWithPassword, signUp, loading } = useAuth();
+  const { isAuthenticated, getCurrentUser, signInWithGoogle, signInWithPassword, signUp, sendPasswordReset, updatePassword, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAddListing, setShowAddListing] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authForceMode, setAuthForceMode] = useState(null);
   const [selectedCampus, setSelectedCampus] = useState(null);
+
+  // Listen for PASSWORD_RECOVERY event (user clicked reset link in email)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthForceMode('reset-password');
+        setAuthModalOpen(true);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
   const [logoTagline, setLogoTagline] = useState('Social Life in and Around Campus');
   
   const user = getCurrentUser();
@@ -54,6 +67,12 @@ export default function Layout({ children, currentPageName }) {
   ];
 
   const handleSignIn = () => {
+    setAuthForceMode('choose');
+    setAuthModalOpen(true);
+  };
+
+  const handleSignUp = () => {
+    setAuthForceMode('choose-signup');
     setAuthModalOpen(true);
   };
 
@@ -75,10 +94,16 @@ export default function Layout({ children, currentPageName }) {
       {/* Auth Modal */}
       <AuthModal
         open={authModalOpen}
-        onOpenChange={setAuthModalOpen}
+        onOpenChange={(open) => {
+          setAuthModalOpen(open);
+          if (!open) setAuthForceMode(null);
+        }}
         onGoogleSignIn={signInWithGoogle}
         onEmailSignIn={signInWithPassword}
         onEmailSignUp={signUp}
+        onPasswordReset={sendPasswordReset}
+        onUpdatePassword={updatePassword}
+        forceMode={authForceMode}
       />
 
       {/* Top Header */}
@@ -180,7 +205,7 @@ export default function Layout({ children, currentPageName }) {
                 )}
                 {!isAuthenticated() && (
                   <Button
-                    onClick={handleSignIn}
+                    onClick={handleSignUp}
                     className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6"
                   >
                     Sign up
@@ -223,7 +248,7 @@ export default function Layout({ children, currentPageName }) {
                 ))}
                 {!isAuthenticated() && (
                   <Button
-                    onClick={handleSignIn}
+                    onClick={handleSignUp}
                     className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full"
                   >
                     Sign up
@@ -276,7 +301,7 @@ export default function Layout({ children, currentPageName }) {
                     Sign in
                   </Button>
                   <Button
-                    onClick={handleSignIn}
+                    onClick={handleSignUp}
                     className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-6"
                   >
                     Sign up

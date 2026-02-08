@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { signInWithGoogle, signInWithPassword, signUp, isAuthenticated, isRegistrationComplete, getCurrentUser, loading: authLoading, profileLoaded } = useAuth();
+  const { signInWithGoogle, signInWithPassword, signUp, sendPasswordReset, updatePassword, isAuthenticated, isRegistrationComplete, getCurrentUser, loading: authLoading, profileLoaded } = useAuth();
   const [events, setEvents] = useState([]);
   const [places, setPlaces] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
@@ -212,7 +212,9 @@ export default function Landing() {
         onGoogleSignIn={signInWithGoogle}
         onEmailSignIn={signInWithPassword}
         onEmailSignUp={signUp}
-        initialMode="signup"
+        onPasswordReset={sendPasswordReset}
+        onUpdatePassword={updatePassword}
+        initialMode="choose-signup"
       />
       <HeroSection
         onJoin={handleJoin}
