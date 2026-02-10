@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Dartmouth Cycling Club",
+    "description": "Road and mountain biking group. Weekly rides around the Upper Valley. All levels welcome!",
+    "category": "Sports",
+    "image_url": "https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=600",
+    "status": "approved",
+    "member_count": 45
+  },
+  {
+    "name": "Dartmouth A Cappella",
+    "description": "Student-run a cappella group performing pop, jazz, and classical arrangements. Auditions every fall.",
+    "category": "Music",
+    "image_url": "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600",
+    "status": "approved",
+    "member_count": 28
+  },
+  {
+    "name": "Hack Dartmouth",
+    "description": "CS and engineering club organizing hackathons, coding workshops, and tech talks. Open to all majors.",
+    "category": "Technology",
+    "image_url": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600",
+    "status": "approved",
+    "member_count": 120
+  },
+  {
+    "name": "Green Key Society",
+    "description": "Community service and campus volunteer organization. Weekly volunteering at local food bank and tutoring programs.",
+    "category": "Volunteering",
+    "image_url": "https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=600",
+    "status": "approved",
+    "member_count": 65
+  },
+  {
+    "name": "Dartmouth Foodies",
+    "description": "Exploring the best food spots in Hanover and the Upper Valley. Monthly restaurant crawls and cooking sessions.",
+    "category": "Food",
+    "image_url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600",
+    "status": "approved",
+    "member_count": 88
+  }
+]

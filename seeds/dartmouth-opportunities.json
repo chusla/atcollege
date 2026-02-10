@@ -1,0 +1,49 @@
+[
+  {
+    "title": "Research Assistant - Neuroscience Lab",
+    "description": "Seeking undergraduate RAs for a study on memory and cognition. 10-15 hours/week during spring term. Stipend provided.",
+    "type": "Research",
+    "organization": "Dartmouth Brain Imaging Center",
+    "location": "Moore Hall, Dartmouth College",
+    "latitude": 43.7060,
+    "longitude": -72.2870,
+    "deadline": "2026-03-01",
+    "image_url": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600",
+    "status": "approved"
+  },
+  {
+    "title": "Volunteer Tutor - Hanover High School",
+    "description": "Help local high school students with math and science homework. 2-4 hours/week. Great for education-minded students!",
+    "type": "Volunteer",
+    "organization": "Hanover Community Education",
+    "location": "Hanover High School, 41 Lebanon St",
+    "latitude": 43.6997,
+    "longitude": -72.2911,
+    "image_url": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600",
+    "status": "approved"
+  },
+  {
+    "title": "Summer Internship - Green Energy Startup",
+    "description": "Join a Hanover-based clean energy startup for a 10-week summer internship. Work on solar panel efficiency research.",
+    "type": "Internship",
+    "organization": "SolarFlux Technologies",
+    "location": "Centerra Park, Lebanon NH",
+    "latitude": 43.6417,
+    "longitude": -72.2518,
+    "deadline": "2026-04-15",
+    "image_url": "https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=600",
+    "status": "approved"
+  },
+  {
+    "title": "Barista - Dirt Cowboy Cafe",
+    "description": "Part-time barista position at the beloved campus coffee shop. Flexible hours, free coffee, and great tips!",
+    "type": "Work",
+    "organization": "Dirt Cowboy Cafe",
+    "location": "7 S Main St, Hanover, NH",
+    "latitude": 43.7022,
+    "longitude": -72.2898,
+    "deadline": "2026-03-15",
+    "image_url": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600",
+    "status": "approved"
+  }
+]

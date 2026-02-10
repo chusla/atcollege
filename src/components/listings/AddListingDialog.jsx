@@ -115,6 +115,7 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
             ...baseData,
             name: formData.name,
             category: formData.category,
+            location: formData.location || null,
             created_by: user?.id,
             campus_id: user?.selected_campus_id,
             member_count: 1
@@ -325,6 +326,20 @@ export default function AddListingDialog({ open, onClose, onSuccess }) {
               <div>
                 <Label htmlFor="category">Category</Label>
                 <Input id="category" value={formData.category} onChange={(e) => updateField('category', e.target.value)} placeholder="e.g., Sports, Music, Tech" />
+              </div>
+              <div>
+                <Label htmlFor="location">Meeting Location (optional)</Label>
+                <PlacesAutocomplete
+                  value={formData.location}
+                  onChange={(value) => updateField('location', value)}
+                  onPlaceSelect={(place) => {
+                    updateField('location', place.address || place.name);
+                    updateField('latitude', place.latitude);
+                    updateField('longitude', place.longitude);
+                  }}
+                  placeholder="Where does this group meet?"
+                />
+                <p className="text-xs text-gray-500 mt-1">Add a location so members can find you on the map</p>
               </div>
             </TabsContent>
 

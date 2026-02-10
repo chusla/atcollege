@@ -142,7 +142,7 @@ export default function Events() {
       // DB uses PascalCase: Sports, Shows, Talks, Social, Academic, Other
       const effectiveCategory = category && category !== 'all' ? category : (searchQuery && searchTermToCategory(searchQuery));
       if (effectiveCategory) {
-        const dbCategory = { sports: 'Sports', social: 'Social', academic: 'Academic', cultural: 'Other', career: 'Academic', workshop: 'Academic' }[effectiveCategory.toLowerCase()] || effectiveCategory;
+        const dbCategory = { sports: 'Sports', social: 'Social', academic: 'Academic', cultural: 'Other', career: 'Academic', workshop: 'Academic', shows: 'Shows', talks: 'Talks', other: 'Other' }[effectiveCategory.toLowerCase()] || effectiveCategory;
         filters.category = dbCategory;
       }
 
@@ -347,11 +347,14 @@ export default function Events() {
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
                     <SelectItem value="sports">Sports</SelectItem>
+                    <SelectItem value="shows">Shows</SelectItem>
+                    <SelectItem value="talks">Talks</SelectItem>
                     <SelectItem value="social">Social</SelectItem>
                     <SelectItem value="academic">Academic</SelectItem>
                     <SelectItem value="cultural">Cultural</SelectItem>
                     <SelectItem value="career">Career</SelectItem>
                     <SelectItem value="workshop">Workshop</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

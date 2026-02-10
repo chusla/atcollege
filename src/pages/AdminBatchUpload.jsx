@@ -15,7 +15,7 @@ import { fetchUniversityBranding, getWikipediaImageUrl } from '@/utils/wikipedia
 
 export default function AdminBatchUpload() {
   const navigate = useNavigate();
-  const { isAdmin, isAuthenticated, loading: authLoading, profileLoaded } = useAuth();
+  const { isAdmin, isAuthenticated, loading: authLoading, profileLoaded, getCurrentUser } = useAuth();
   const [entityType, setEntityType] = useState('events');
   const [jsonData, setJsonData] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -134,10 +134,23 @@ export default function AdminBatchUpload() {
       let geocodedCount = 0;
       let brandedCount = 0;
 
+      // Auto-inject campus_id and created_by from logged-in admin
+      const currentUser = getCurrentUser();
+      const autoFields = {};
+      if (entityType !== 'campuses') {
+        if (currentUser?.selected_campus_id) {
+          autoFields.campus_id = currentUser.selected_campus_id;
+        }
+        if (currentUser?.id) {
+          autoFields.created_by = currentUser.id;
+        }
+      }
+
       for (let i = 0; i < data.length; i++) {
         const item = data[i];
         try {
-          let processedItem = item;
+          // Merge auto-fields (JSON values override if explicitly provided)
+          let processedItem = { ...autoFields, ...item };
           
           // Special processing for campuses - geocode + fetch branding
           if (entityType === 'campuses') {
@@ -303,6 +316,19 @@ export default function AdminBatchUpload() {
                 </SelectContent>
               </Select>
             </div>
+
+            {entityType !== 'campuses' && getCurrentUser()?.selected_campus_id && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800 flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="font-medium">Auto-linked to your campus</span>
+                </p>
+                <p className="text-xs text-green-700 mt-1">
+                  campus_id and created_by are automatically set from your account.
+                  You can override them by including these fields in your JSON.
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium mb-2 block">JSON Data</label>

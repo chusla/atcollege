@@ -1,0 +1,74 @@
+[
+  {
+    "title": "Spring Basketball Tournament",
+    "description": "Annual inter-dorm basketball tournament on the Dartmouth Green. Open to all skill levels. Sign up as a team or individual!",
+    "category": "Sports",
+    "date": "2026-03-15",
+    "time": "14:00",
+    "location": "Alumni Gym, Dartmouth College",
+    "latitude": 43.7030,
+    "longitude": -72.2880,
+    "image_url": "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600",
+    "status": "approved"
+  },
+  {
+    "title": "Jazz Night at Collis",
+    "description": "Live jazz performance featuring the Dartmouth Jazz Ensemble. Free admission, refreshments provided.",
+    "category": "Shows",
+    "date": "2026-02-28",
+    "time": "19:30",
+    "location": "Collis Center, Dartmouth College",
+    "latitude": 43.7032,
+    "longitude": -72.2896,
+    "image_url": "https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=600",
+    "status": "approved"
+  },
+  {
+    "title": "AI & Ethics Lecture Series",
+    "description": "Distinguished speaker series on artificial intelligence and its ethical implications. This week: Prof. Sarah Chen on algorithmic bias.",
+    "category": "Talks",
+    "date": "2026-03-05",
+    "time": "16:00",
+    "location": "Moore Hall, Dartmouth College",
+    "latitude": 43.7060,
+    "longitude": -72.2870,
+    "image_url": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600",
+    "status": "approved"
+  },
+  {
+    "title": "Winter Carnival Social",
+    "description": "Annual Dartmouth Winter Carnival social event. Live music, food trucks, and ice sculptures on the Green.",
+    "category": "Social",
+    "date": "2026-02-20",
+    "time": "18:00",
+    "location": "Dartmouth Green",
+    "latitude": 43.7044,
+    "longitude": -72.2887,
+    "image_url": "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=600",
+    "status": "approved"
+  },
+  {
+    "title": "Intro to Machine Learning Workshop",
+    "description": "Hands-on workshop covering ML fundamentals using Python. Bring your laptop! No prior experience needed.",
+    "category": "Academic",
+    "date": "2026-03-10",
+    "time": "13:00",
+    "location": "Sudikoff Lab, Dartmouth College",
+    "latitude": 43.7062,
+    "longitude": -72.2868,
+    "image_url": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600",
+    "status": "approved"
+  },
+  {
+    "title": "Outdoor Film Screening: Interstellar",
+    "description": "Outdoor movie night on the Green. Blankets and popcorn provided. Starts at sunset.",
+    "category": "Other",
+    "date": "2026-04-01",
+    "time": "20:00",
+    "location": "Dartmouth Green",
+    "latitude": 43.7044,
+    "longitude": -72.2887,
+    "image_url": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600",
+    "status": "approved"
+  }
+]

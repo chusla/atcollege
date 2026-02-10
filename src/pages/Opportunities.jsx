@@ -18,7 +18,9 @@ const TYPE_MAP = {
   volunteer: 'Volunteer',
   internship: 'Internship',
   job: 'Work',
+  work: 'Work',
   research: 'Research',
+  other: 'Other',
 };
 
 export default function Opportunities() {
@@ -82,8 +84,11 @@ export default function Opportunities() {
     setLoading(true);
     try {
       const filters = { status: 'approved' };
-      if (type && type !== 'all' && TYPE_MAP[type]) {
-        filters.type = TYPE_MAP[type];
+      if (type && type !== 'all') {
+        const dbType = TYPE_MAP[type.toLowerCase()];
+        if (dbType) {
+          filters.type = dbType;
+        }
       }
 
       // Campus filter - applied client-side to also include opportunities with null campus_id
@@ -302,8 +307,9 @@ export default function Opportunities() {
                     <SelectItem value="all">All Types</SelectItem>
                     <SelectItem value="volunteer">Volunteering</SelectItem>
                     <SelectItem value="internship">Internships</SelectItem>
-                    <SelectItem value="job">Jobs</SelectItem>
+                    <SelectItem value="job">Jobs / Work</SelectItem>
                     <SelectItem value="research">Research</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -374,12 +374,12 @@ export default function Home() {
             prompt="Show me the next events in and around my campus"
             categories={[
               { value: 'all', label: 'All Categories' },
-              { value: 'Sports', label: 'Sports' },
-              { value: 'Shows', label: 'Shows' },
-              { value: 'Talks', label: 'Talks' },
-              { value: 'Social', label: 'Social' },
-              { value: 'Academic', label: 'Academic' },
-              { value: 'Other', label: 'Other' }
+              { value: 'sports', label: 'Sports' },
+              { value: 'shows', label: 'Shows' },
+              { value: 'talks', label: 'Talks' },
+              { value: 'social', label: 'Social' },
+              { value: 'academic', label: 'Academic' },
+              { value: 'other', label: 'Other' }
             ]}
             showTimeWindow={true}
             showRadius={true}
@@ -397,14 +397,14 @@ export default function Home() {
             prompt="Show me the best places in and around my campus"
             categories={[
               { value: 'all', label: 'All Categories' },
-              { value: 'Bars', label: 'Bars' },
-              { value: 'Restaurants', label: 'Restaurants' },
-              { value: 'Cafes', label: 'Cafes' },
-              { value: 'Housing', label: 'Housing' },
-              { value: 'Study Spots', label: 'Study Spots' },
-              { value: 'Entertainment', label: 'Entertainment' },
-              { value: 'Shopping', label: 'Shopping' },
-              { value: 'Other', label: 'Other' }
+              { value: 'restaurants', label: 'Restaurants' },
+              { value: 'cafes', label: 'Cafes' },
+              { value: 'bars', label: 'Bars' },
+              { value: 'study_spots', label: 'Study Spots' },
+              { value: 'entertainment', label: 'Entertainment' },
+              { value: 'shopping', label: 'Shopping' },
+              { value: 'housing', label: 'Housing' },
+              { value: 'other', label: 'Other' }
             ]}
             showTimeWindow={false}
             showRadius={true}
@@ -421,11 +421,11 @@ export default function Home() {
             prompt="Show me opportunities in and around my campus"
             categories={[
               { value: 'all', label: 'All Types' },
-              { value: 'Volunteer', label: 'Volunteering' },
-              { value: 'Internship', label: 'Internships' },
-              { value: 'Work', label: 'Work / Part-time' },
-              { value: 'Research', label: 'Research' },
-              { value: 'Other', label: 'Other' }
+              { value: 'volunteer', label: 'Volunteering' },
+              { value: 'internship', label: 'Internships' },
+              { value: 'job', label: 'Work / Part-time' },
+              { value: 'research', label: 'Research' },
+              { value: 'other', label: 'Other' }
             ]}
             showTimeWindow={true}
             showRadius={true}
