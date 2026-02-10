@@ -146,7 +146,7 @@ export default function Events() {
         filters.category = dbCategory;
       }
 
-      // Campus filter - show events for user's campus OR events with no campus (legacy)
+      // Campus filter - show events for the user's campus only
       const user = isAuthenticated() ? getCurrentUser() : null;
       const campusId = user?.selected_campus_id;
       if (campusId) {
@@ -214,9 +214,14 @@ export default function Events() {
       }
 
       const opts = { orderBy, limit: 50, searchQuery: searchQuery && searchQuery.trim() ? searchQuery.trim() : undefined };
-      let data = campusId
-        ? await Event.filterWithCampusOrNull(campusId, filters, opts)
-        : await Event.filter(filters, opts);
+      let data;
+      if (campusId && opts.searchQuery) {
+        // When there's a search query AND campus, use the campus-aware search method
+        data = await Event.filterWithCampusOrNull(campusId, filters, opts);
+      } else {
+        // Strict campus filter — only show events matching the user's campus
+        data = await Event.filter(filters, opts);
+      }
       data = data || [];
 
       // When not using campus filter, apply search text client-side (API has no search in generic filter)

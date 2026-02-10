@@ -86,21 +86,13 @@ export default function Opportunities() {
         filters.type = TYPE_MAP[type];
       }
 
-      // Geographic constraint: campus center + specific radius
-      // Only apply geo filter when a specific radius is selected (not "any")
+      // Campus filter - applied client-side to also include opportunities with null campus_id
+      const user = isAuthenticated() ? getCurrentUser() : null;
+      const campusId = user?.selected_campus_id;
+
+      // Geographic constraint: applied client-side to avoid excluding opportunities without coordinates
       const useGeoFilter = userLocation && radius !== 'any' && radius !== 'all';
       const effectiveRadiusMiles = useGeoFilter ? parseFloat(radius) : null;
-      if (useGeoFilter && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
-        const bbox = getBoundingBox(userLocation.lat, userLocation.lng, effectiveRadiusMiles);
-        filters.latitude = [
-          { operator: 'gte', value: bbox.minLat },
-          { operator: 'lte', value: bbox.maxLat }
-        ];
-        filters.longitude = [
-          { operator: 'gte', value: bbox.minLng },
-          { operator: 'lte', value: bbox.maxLng }
-        ];
-      }
 
       // Date window filter based on deadline
       const today = new Date();
@@ -196,19 +188,27 @@ export default function Opportunities() {
 
       let results = data || [];
 
+      // Also include opportunities with null campus_id (legacy/unassigned) if campus filter is set
+      if (campusId) {
+        results = results.filter(opp => opp.campus_id === campusId || opp.campus_id == null);
+      }
+
       // Post-filter: "No deadline" — only keep items with null deadline
       if (timeWindow === 'no_deadline') {
         results = results.filter(opp => !opp.deadline);
       }
 
-      // Post-filter by precise radius (Haversine) and add distance
+      // Client-side: opportunities with coords filter by radius; without coords still show
       if (useGeoFilter && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
-        results = filterByRadius(
-          results,
+        const withCoords = results.filter(o => o.latitude != null && o.longitude != null);
+        const withoutCoords = results.filter(o => o.latitude == null || o.longitude == null);
+        const filteredByRadius = filterByRadius(
+          withCoords,
           userLocation.lat,
           userLocation.lng,
           effectiveRadiusMiles
         );
+        results = [...filteredByRadius, ...withoutCoords];
       }
 
       setOpportunities(results.slice(0, 50));

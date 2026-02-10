@@ -227,10 +227,18 @@ export default function Places() {
       setPlaces(sortedData.slice(0, 50));
       setLoading(false);
 
-      // If there's a search query and we have location, also fetch Google Places
-      if (searchQuery && searchQuery.trim() && userLocation && !googleSearchDone.current) {
-        googleSearchDone.current = true;
-        fetchGooglePlaces(sortedData);
+      // Fetch Google Places when we have location AND either:
+      // 1. There's a search query, OR
+      // 2. DB results are empty (auto-populate with nearby popular places)
+      if (userLocation && !googleSearchDone.current) {
+        if (searchQuery && searchQuery.trim()) {
+          googleSearchDone.current = true;
+          fetchGooglePlaces(sortedData);
+        } else if (data.length === 0) {
+          // No DB results - auto-fetch popular places from Google to populate the page
+          googleSearchDone.current = true;
+          fetchGooglePlaces(sortedData, 'popular places restaurants cafes near campus');
+        }
       }
     } catch (error) {
       console.error('Error loading places:', error);
@@ -280,15 +288,16 @@ export default function Places() {
     });
   };
 
-  const fetchGooglePlaces = async (dbPlaces) => {
-    if (!userLocation || !searchQuery) {
+  const fetchGooglePlaces = async (dbPlaces, defaultQuery = null) => {
+    const effectiveQuery = (searchQuery && searchQuery.trim()) || defaultQuery;
+    if (!userLocation || !effectiveQuery) {
       console.log('📍 [PLACES PAGE] Skipping Google search - no location or query', { userLocation, searchQuery });
       return;
     }
 
     setLoadingGoogle(true);
     console.log('📍 [PLACES PAGE] Starting Google Places search:', {
-      query: searchQuery,
+      query: effectiveQuery,
       location: userLocation,
       radius: radius,
       dbPlacesCount: dbPlaces.length
@@ -299,7 +308,7 @@ export default function Places() {
       const radiusMiles = radius === 'any' ? ANY_DISTANCE_RADIUS_MILES : parseFloat(radius);
 
       // Fetch Google Places
-      const googleResults = await searchPlaces(searchQuery, userLocation, radiusMeters);
+      const googleResults = await searchPlaces(effectiveQuery, userLocation, radiusMeters);
       
       if (!googleResults || googleResults.length === 0) {
         console.log('🔍 [PLACES PAGE] No Google results');

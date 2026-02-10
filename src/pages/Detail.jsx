@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, MapPin, Calendar, Clock, Star, Heart, Users, Briefcase } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Star, Heart, Users, Briefcase, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { useGoogleMaps } from '@/components/maps/GoogleMapsProvider';
@@ -261,8 +261,20 @@ export default function Detail() {
                 )}
                 {(item.location || item.address) && (
                   <div className="flex items-center gap-3 text-gray-600">
-                    <MapPin className="w-5 h-5" />
-                    <span>{item.location || item.address}</span>
+                    <MapPin className="w-5 h-5 flex-shrink-0" />
+                    <a
+                      href={
+                        hasLocation
+                          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location || item.address)}&query_place_id=&center=${item.latitude},${item.longitude}`
+                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location || item.address)}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                    >
+                      {item.location || item.address}
+                      <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                    </a>
                   </div>
                 )}
                 {item.organization && (
@@ -332,34 +344,63 @@ export default function Detail() {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            {hasLocation && (
+            {(hasLocation || item.location || item.address) && (
               <Card className="p-4 mb-6">
                 <h3 className="font-semibold text-gray-900 mb-3">Location</h3>
-                <div className="h-64 rounded-lg overflow-hidden bg-gray-100">
-                  {mapsLoaded ? (
-                    <GoogleMap
-                      mapContainerStyle={{ width: '100%', height: '100%' }}
-                      center={{ lat: parseFloat(item.latitude), lng: parseFloat(item.longitude) }}
-                      zoom={15}
-                      options={{
-                        streetViewControl: false,
-                        mapTypeControl: false,
-                        fullscreenControl: true,
-                        zoomControl: true,
-                      }}
-                    >
-                      <Marker
-                        position={{ lat: parseFloat(item.latitude), lng: parseFloat(item.longitude) }}
-                        title={item.title || item.name}
-                      />
-                    </GoogleMap>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                {hasLocation ? (
+                  <>
+                    <div className="h-64 rounded-lg overflow-hidden bg-gray-100">
+                      {mapsLoaded ? (
+                        <GoogleMap
+                          mapContainerStyle={{ width: '100%', height: '100%' }}
+                          center={{ lat: parseFloat(item.latitude), lng: parseFloat(item.longitude) }}
+                          zoom={15}
+                          options={{
+                            streetViewControl: false,
+                            mapTypeControl: false,
+                            fullscreenControl: true,
+                            zoomControl: true,
+                          }}
+                        >
+                          <Marker
+                            position={{ lat: parseFloat(item.latitude), lng: parseFloat(item.longitude) }}
+                            title={item.title || item.name}
+                          />
+                        </GoogleMap>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mt-2">{item.location || item.address}</p>
+                    <p className="text-sm text-gray-600 mt-2">{item.location || item.address}</p>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      Get Directions
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-6 text-center">
+                    <MapPin className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 mb-3">{item.location || item.address}</p>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location || item.address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      View on Google Maps
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
               </Card>
             )}
           </div>

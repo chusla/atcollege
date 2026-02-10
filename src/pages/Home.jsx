@@ -146,9 +146,16 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      // Load more groups so we can score and sort by user interests
+      // Build filter: always require approved status, and scope to user's campus
+      const filters = { status: 'approved' };
+      const campusId = user?.selected_campus_id;
+      if (campusId) {
+        filters.campus_id = campusId;
+      }
+
+      // Load groups for the user's campus so we can score and sort by user interests
       const groupsData = await InterestGroup.filter(
-        { status: 'approved' },
+        filters,
         { orderBy: { column: 'member_count', ascending: false }, limit: 50 }
       );
       
