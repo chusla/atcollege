@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { UploadFile } from '@/api/integrations';
-import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2, Calendar, Building2, Briefcase, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2, Calendar, Building2, Briefcase, Users, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { format } from 'date-fns';
 
@@ -34,6 +34,12 @@ export default function Profile() {
   const [selectedCampus, setSelectedCampus] = useState('');
   const [firstName, setFirstName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+
+  // Add university
+  const [showAddUniversity, setShowAddUniversity] = useState(false);
+  const [newUniversityName, setNewUniversityName] = useState('');
+  const [newUniversityLocation, setNewUniversityLocation] = useState('');
+  const [addingUniversity, setAddingUniversity] = useState(false);
 
   const user = getCurrentUser();
 
@@ -114,6 +120,48 @@ export default function Profile() {
       alert('College updated successfully!');
     } catch (error) {
       console.error('Error updating campus:', error);
+    }
+  };
+
+  const handleAddUniversity = async () => {
+    if (!newUniversityName.trim()) {
+      alert('Please enter the university name');
+      return;
+    }
+    if (!newUniversityLocation.trim()) {
+      alert('Please enter the university location (city, state)');
+      return;
+    }
+
+    setAddingUniversity(true);
+    try {
+      const newCampus = await Campus.create({
+        name: newUniversityName.trim(),
+        location: newUniversityLocation.trim()
+      });
+
+      if (newCampus?.id) {
+        await InterestGroup.seedDefaultGroups(newCampus.id);
+
+        // Select the newly created campus
+        setSelectedCampus(newCampus.id);
+        setCampuses(prev => [...prev, newCampus]);
+        setShowAddUniversity(false);
+        setNewUniversityName('');
+        setNewUniversityLocation('');
+
+        // Auto-update profile to the new campus
+        await updateProfile({
+          selected_campus_id: newCampus.id,
+          selected_campus_name: newCampus.name
+        });
+        alert('University added and selected!');
+      }
+    } catch (error) {
+      console.error('Error adding university:', error);
+      alert('Failed to add university. Please try again.');
+    } finally {
+      setAddingUniversity(false);
     }
   };
 
@@ -510,6 +558,69 @@ export default function Profile() {
             >
               Update College
             </Button>
+
+            {/* Add University Section */}
+            {!showAddUniversity ? (
+              <button
+                onClick={() => setShowAddUniversity(true)}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Can't find your college? Add it here
+              </button>
+            ) : (
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                <div>
+                  <Label htmlFor="newUniName" className="text-sm font-medium">University Name</Label>
+                  <Input
+                    id="newUniName"
+                    type="text"
+                    placeholder="e.g., Stanford University"
+                    value={newUniversityName}
+                    onChange={(e) => setNewUniversityName(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newUniLocation" className="text-sm font-medium">Location</Label>
+                  <Input
+                    id="newUniLocation"
+                    type="text"
+                    placeholder="e.g., Stanford, CA"
+                    value={newUniversityLocation}
+                    onChange={(e) => setNewUniversityLocation(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleAddUniversity}
+                    disabled={addingUniversity || !newUniversityName.trim() || !newUniversityLocation.trim()}
+                    className="bg-blue-600 hover:bg-blue-700 text-sm"
+                  >
+                    {addingUniversity ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      'Add University'
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddUniversity(false);
+                      setNewUniversityName('');
+                      setNewUniversityLocation('');
+                    }}
+                    className="text-sm"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card >
       </div >
