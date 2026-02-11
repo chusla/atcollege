@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { InterestGroup, SavedItem, Campus } from '@/api/entities';
+import { supabase } from '@/api/supabaseClient';
 import { filterByRadius, ANY_DISTANCE_RADIUS_MILES } from '@/utils/geo';
 import GroupCard from '../components/cards/GroupCard';
 import GroupRowCard from '../components/results/GroupRowCard';
@@ -68,9 +69,6 @@ export default function Groups() {
       // Campus filter
       const user = isAuthenticated() ? getCurrentUser() : null;
       const campusId = user?.selected_campus_id;
-      if (campusId) {
-        filters.campus_id = campusId;
-      }
 
       // Category filter (server-side)
       if (category && category !== 'all') {
@@ -93,7 +91,32 @@ export default function Groups() {
           orderBy = { column: 'member_count', ascending: false };
       }
 
-      const data = await InterestGroup.filter(filters, { orderBy, limit: 100 });
+      let data;
+      if (campusId) {
+        // Fetch groups for this campus OR with no campus (shared/global groups)
+        let query = supabase
+          .from('interest_groups')
+          .select('*')
+          .or(`campus_id.eq.${campusId},campus_id.is.null`);
+
+        // Apply remaining filters
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            query = query.eq(key, value);
+          }
+        });
+
+        if (orderBy) {
+          query = query.order(orderBy.column, { ascending: orderBy.ascending ?? true });
+        }
+        query = query.limit(100);
+
+        const { data: result, error } = await query;
+        if (error) throw error;
+        data = result;
+      } else {
+        data = await InterestGroup.filter(filters, { orderBy, limit: 100 });
+      }
       let results = data || [];
 
       // Client-side radius filter for groups with coordinates
@@ -109,7 +132,10 @@ export default function Groups() {
           userLocation.lng,
           effectiveRadiusMiles
         );
-        results = [...filteredByRadius, ...withoutCoords];
+        // Only include items without coordinates when radius is large (>= 10 miles)
+        // For tight radius filters, users expect geographic precision
+        const includeNoCoords = parseFloat(radius) >= 10;
+        results = includeNoCoords ? [...filteredByRadius, ...withoutCoords] : [...filteredByRadius];
       }
 
       setGroups(results);

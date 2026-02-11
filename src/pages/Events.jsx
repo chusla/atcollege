@@ -215,11 +215,10 @@ export default function Events() {
 
       const opts = { orderBy, limit: 50, searchQuery: searchQuery && searchQuery.trim() ? searchQuery.trim() : undefined };
       let data;
-      if (campusId && opts.searchQuery) {
-        // When there's a search query AND campus, use the campus-aware search method
+      if (campusId) {
+        // Use campus-aware filter that also includes events with null campus_id
         data = await Event.filterWithCampusOrNull(campusId, filters, opts);
       } else {
-        // Strict campus filter — only show events matching the user's campus
         data = await Event.filter(filters, opts);
       }
       data = data || [];
@@ -231,13 +230,16 @@ export default function Events() {
         data = data.filter(e => (e.title && e.title.toLowerCase().includes(lower)) || (e.description && e.description.toLowerCase().includes(lower)));
       }
 
-      // Client-side: events with coords filter by radius; events without coords still show (campus-scoped)
+      // Client-side: events with coords filter by radius; events without coords only show for large radius or 'any'
       let withCoords = (data || []).filter(e => e.latitude != null && e.longitude != null);
       let withoutCoords = (data || []).filter(e => e.latitude == null || e.longitude == null);
       if (userLocation && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
         withCoords = filterByRadius(withCoords, userLocation.lat, userLocation.lng, effectiveRadiusMiles);
       }
-      const combined = [...withCoords, ...withoutCoords];
+      // Only include items without coordinates when radius is 'any' or large (>= 10 miles)
+      // For tight radius filters, users expect geographic precision
+      const includeNoCoords = radius === 'any' || parseFloat(radius) >= 10 || !userLocation;
+      const combined = includeNoCoords ? [...withCoords, ...withoutCoords] : [...withCoords];
       const byDate = (a, b) => (new Date(a.date) - new Date(b.date));
       combined.sort((a, b) => byDate(a, b));
 

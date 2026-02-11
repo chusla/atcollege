@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Campus } from '@/api/entities';
+import { Campus, InterestGroup } from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { motion } from 'framer-motion';
-import { Search, GraduationCap, Loader2, Upload, User } from 'lucide-react';
+import { Search, GraduationCap, Loader2, Upload, User, Plus } from 'lucide-react';
 
 const interestOptions = [
   'Sports', 'Music', 'Arts', 'Technology', 'Food', 'Gaming',
@@ -34,6 +34,12 @@ export default function Onboarding() {
   const [gender, setGender] = useState('');
   const [selectedCampusId, setSelectedCampusId] = useState('');
   const [selectedCampusName, setSelectedCampusName] = useState('');
+  
+  // Add university
+  const [showAddUniversity, setShowAddUniversity] = useState(false);
+  const [newUniversityName, setNewUniversityName] = useState('');
+  const [newUniversityLocation, setNewUniversityLocation] = useState('');
+  const [addingUniversity, setAddingUniversity] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated()) {
@@ -99,6 +105,45 @@ export default function Onboarding() {
   const handleSelectCampus = (campus) => {
     setSelectedCampusId(campus.id);
     setSelectedCampusName(campus.name);
+  };
+
+  const handleAddUniversity = async () => {
+    if (!newUniversityName.trim()) {
+      alert('Please enter the university name');
+      return;
+    }
+    if (!newUniversityLocation.trim()) {
+      alert('Please enter the university location (city, state)');
+      return;
+    }
+
+    setAddingUniversity(true);
+    try {
+      const newCampus = await Campus.create({
+        name: newUniversityName.trim(),
+        location: newUniversityLocation.trim()
+      });
+
+      if (newCampus?.id) {
+        // Seed default interest groups for the new campus
+        await InterestGroup.seedDefaultGroups(newCampus.id);
+        
+        // Select the newly created campus
+        setSelectedCampusId(newCampus.id);
+        setSelectedCampusName(newCampus.name);
+        
+        // Add to list and reset
+        setCampuses(prev => [...prev, newCampus]);
+        setShowAddUniversity(false);
+        setNewUniversityName('');
+        setNewUniversityLocation('');
+      }
+    } catch (error) {
+      console.error('Error adding university:', error);
+      alert('Failed to add university. Please try again.');
+    } finally {
+      setAddingUniversity(false);
+    }
   };
 
   const handleComplete = async () => {
@@ -313,6 +358,70 @@ export default function Onboarding() {
             {filteredCampuses.length === 0 && !loading && (
               <div className="text-center py-8">
                 <p className="text-gray-500 text-sm">No universities found</p>
+              </div>
+            )}
+
+            {/* Add University Section */}
+            {!showAddUniversity ? (
+              <button
+                onClick={() => setShowAddUniversity(true)}
+                className="mt-4 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-gray-300 text-gray-500 hover:border-orange-400 hover:text-orange-600 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">Can't find your university? Add it here</span>
+              </button>
+            ) : (
+              <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
+                <h4 className="font-semibold text-gray-900 text-sm">Add Your University</h4>
+                <div>
+                  <Label htmlFor="newUniName" className="text-xs">University Name</Label>
+                  <Input
+                    id="newUniName"
+                    type="text"
+                    placeholder="e.g., Stanford University"
+                    value={newUniversityName}
+                    onChange={(e) => setNewUniversityName(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newUniLocation" className="text-xs">Location (City, State)</Label>
+                  <Input
+                    id="newUniLocation"
+                    type="text"
+                    placeholder="e.g., Stanford, CA"
+                    value={newUniversityLocation}
+                    onChange={(e) => setNewUniversityLocation(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleAddUniversity}
+                    disabled={addingUniversity || !newUniversityName.trim() || !newUniversityLocation.trim()}
+                    className="bg-orange-500 hover:bg-orange-600 text-sm"
+                  >
+                    {addingUniversity ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      'Add University'
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddUniversity(false);
+                      setNewUniversityName('');
+                      setNewUniversityLocation('');
+                    }}
+                    className="text-sm"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             )}
           </div>

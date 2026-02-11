@@ -153,12 +153,16 @@ export default function Landing() {
 
   const loadData = async () => {
     try {
+      // If user is authenticated and has a campus, pass their campusId for relevant results
+      const user = isAuthenticated() ? getCurrentUser() : null;
+      const campusId = user?.selected_campus_id || null;
+
       // Fetch each independently so one failure doesn't block others
       const [eventsResult, placesResult, oppsResult, groupsResult] = await Promise.allSettled([
-        Event.listFeatured(null, 6),
-        Place.listFeatured(null, 6),
-        Opportunity.listFeatured(null, 6),
-        InterestGroup.listFeatured(null, 8)
+        Event.listFeatured(campusId, 6),
+        Place.listFeatured(campusId, 6),
+        Opportunity.listFeatured(campusId, 6),
+        InterestGroup.listFeatured(campusId, 8)
       ]);
       
       setEvents(eventsResult.status === 'fulfilled' ? eventsResult.value || [] : []);
@@ -224,6 +228,7 @@ export default function Landing() {
         heroImageUrl={siteSettings.hero_image_url}
         heroPreTitle={siteSettings.hero_pre_title}
         taglineBar={siteSettings.tagline_bar}
+        isAuthenticated={isAuthenticated()}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">

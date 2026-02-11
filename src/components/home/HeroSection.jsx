@@ -8,7 +8,7 @@ const DEFAULT_HERO_SUBTITLE = 'Discover events, places, opportunities, and group
 const DEFAULT_HERO_PRE_TITLE = 'Your College Experience Starts Here';
 const DEFAULT_TAGLINE_BAR = 'atCollege is a real-time network about social life in and around campus ...';
 
-export default function HeroSection({ onJoin, stats = {}, heroTitle, heroSubtitle, heroImageUrl, heroPreTitle, taglineBar }) {
+export default function HeroSection({ onJoin, stats = {}, heroTitle, heroSubtitle, heroImageUrl, heroPreTitle, taglineBar, isAuthenticated = false }) {
   const heroImage = heroImageUrl || DEFAULT_HERO_IMAGE;
   const { campusCount = 0, eventCount = 0, placeCount = 0, groupCount = 0 } = stats;
 
@@ -48,7 +48,7 @@ export default function HeroSection({ onJoin, stats = {}, heroTitle, heroSubtitl
               onClick={onJoin}
               className="bg-orange-500 hover:bg-orange-600 text-white text-base px-8 py-5 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all"
             >
-              Get Started
+              {isAuthenticated ? 'Go to my Personal Page' : 'Get Started'}
             </Button>
           </motion.div>
         </div>

@@ -211,7 +211,7 @@ export const Event = {
         .order('date', { ascending: true })
         .limit(limit)
 
-      if (campusId) query = query.eq('campus_id', campusId)
+      if (campusId) query = query.or(`campus_id.eq.${campusId},campus_id.is.null`)
       const { data, error } = await query
       if (error) {
         console.error('Error fetching events:', error)
@@ -265,7 +265,7 @@ export const Place = {
         .order('rating', { ascending: false, nullsFirst: false })
         .limit(limit)
 
-      if (campusId) query = query.eq('campus_id', campusId)
+      if (campusId) query = query.or(`campus_id.eq.${campusId},campus_id.is.null`)
       const { data, error } = await query
       if (error) {
         console.error('Error fetching places:', error)
@@ -628,7 +628,7 @@ export const Opportunity = {
         .order('created_at', { ascending: false })
         .limit(limit)
 
-      if (campusId) query = query.eq('campus_id', campusId)
+      if (campusId) query = query.or(`campus_id.eq.${campusId},campus_id.is.null`)
       const { data, error } = await query
       if (error) {
         console.error('Error fetching opportunities:', error)
@@ -645,8 +645,63 @@ export const Opportunity = {
   }
 }
 
+// Default interest groups that should exist at every university
+const DEFAULT_INTEREST_GROUPS = [
+  { name: 'Sports & Athletics', category: 'Sports', description: 'Connect with fellow sports enthusiasts. Whether you play, watch, or coach — join us!', image_url: 'https://images.unsplash.com/photo-1461896836934-bd45ba8fcf9b?w=400', member_count: 0 },
+  { name: 'Music & Bands', category: 'Music', description: 'For musicians, singers, and music lovers. Share your passion for music with others on campus.', image_url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400', member_count: 0 },
+  { name: 'Arts & Creative', category: 'Arts', description: 'A community for artists, designers, and creative minds. Explore and create together.', image_url: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400', member_count: 0 },
+  { name: 'Technology & Coding', category: 'Technology', description: 'Discuss tech, learn to code, build projects, and explore the future of technology.', image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400', member_count: 0 },
+  { name: 'Food & Cooking', category: 'Food', description: 'Share recipes, discover restaurants, and bond over great food near campus.', image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400', member_count: 0 },
+  { name: 'Gaming', category: 'Gaming', description: 'Gamers unite! From board games to esports, find your squad here.', image_url: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=400', member_count: 0 },
+  { name: 'Fitness & Wellness', category: 'Fitness', description: 'Stay active and healthy. Find workout partners, yoga sessions, and wellness tips.', image_url: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400', member_count: 0 },
+  { name: 'Book Club & Reading', category: 'Reading', description: 'For bookworms and avid readers. Discuss your latest reads and discover new favorites.', image_url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400', member_count: 0 },
+  { name: 'Travel & Adventure', category: 'Travel', description: 'Explore the world together. Share travel stories, plan trips, and discover adventures.', image_url: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400', member_count: 0 },
+  { name: 'Photography', category: 'Photography', description: 'Capture moments and share your vision. For photographers of all skill levels.', image_url: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=400', member_count: 0 },
+  { name: 'Volunteering & Community Service', category: 'Volunteering', description: 'Make a difference in your community. Find volunteer opportunities and give back.', image_url: 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=400', member_count: 0 },
+  { name: 'Academic & Study Groups', category: 'Academic', description: 'Study together, share notes, and help each other succeed academically.', image_url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400', member_count: 0 },
+]
+
 export const InterestGroup = {
   ...createEntity('interest_groups'),
+
+  // Seed default interest groups for a new campus
+  async seedDefaultGroups(campusId) {
+    try {
+      // Check if campus already has groups to avoid duplicates
+      const existing = await supabase
+        .from('interest_groups')
+        .select('name')
+        .eq('campus_id', campusId)
+
+      const existingNames = new Set((existing.data || []).map(g => g.name))
+
+      const toCreate = DEFAULT_INTEREST_GROUPS
+        .filter(g => !existingNames.has(g.name))
+        .map(g => ({
+          ...g,
+          campus_id: campusId,
+          status: 'approved'
+        }))
+
+      if (toCreate.length === 0) {
+        console.log('Default groups already exist for campus:', campusId)
+        return []
+      }
+
+      const { data, error } = await supabase
+        .from('interest_groups')
+        .insert(toCreate)
+        .select()
+
+      if (error) throw error
+      console.log(`Seeded ${data.length} default interest groups for campus:`, campusId)
+      return data || []
+    } catch (error) {
+      console.error('Error seeding default groups:', error)
+      return []
+    }
+  },
+
   async listFeatured(campusId = null, limit = 8) {
     try {
       let query = supabase
@@ -656,7 +711,7 @@ export const InterestGroup = {
         .order('member_count', { ascending: false })
         .limit(limit)
 
-      if (campusId) query = query.eq('campus_id', campusId)
+      if (campusId) query = query.or(`campus_id.eq.${campusId},campus_id.is.null`)
       const { data, error } = await query
       if (error) {
         console.error('Error fetching interest groups:', error)

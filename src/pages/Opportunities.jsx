@@ -203,7 +203,7 @@ export default function Opportunities() {
         results = results.filter(opp => !opp.deadline);
       }
 
-      // Client-side: opportunities with coords filter by radius; without coords still show
+      // Client-side: opportunities with coords filter by radius
       if (useGeoFilter && effectiveRadiusMiles != null && effectiveRadiusMiles > 0) {
         const withCoords = results.filter(o => o.latitude != null && o.longitude != null);
         const withoutCoords = results.filter(o => o.latitude == null || o.longitude == null);
@@ -213,7 +213,10 @@ export default function Opportunities() {
           userLocation.lng,
           effectiveRadiusMiles
         );
-        results = [...filteredByRadius, ...withoutCoords];
+        // Only include items without coordinates when radius is large (>= 10 miles)
+        // For tight radius filters, users expect geographic precision
+        const includeNoCoords = parseFloat(radius) >= 10;
+        results = includeNoCoords ? [...filteredByRadius, ...withoutCoords] : [...filteredByRadius];
       }
 
       setOpportunities(results.slice(0, 50));

@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { Campus } from '@/api/entities';
+import { Campus, InterestGroup } from '@/api/entities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { GraduationCap, Plus, Pencil, Trash2, MapPin, Search, Loader2, Sparkles, RefreshCw } from 'lucide-react';
+import { GraduationCap, Plus, Pencil, Trash2, MapPin, Search, Loader2, Sparkles, RefreshCw, Users } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AdminLayout from '../components/layout/AdminLayout';
 import UniversitySearch from '../components/admin/UniversitySearch';
@@ -86,10 +86,14 @@ export default function AdminCampuses() {
           description: `${formData.name} has been updated successfully.`,
         });
       } else {
-        await Campus.create(submitData);
+        const newCampus = await Campus.create(submitData);
+        // Seed default interest groups for the new campus
+        if (newCampus?.id) {
+          await InterestGroup.seedDefaultGroups(newCampus.id);
+        }
         toast({
           title: "Campus added",
-          description: `${formData.name} has been added to the list.`,
+          description: `${formData.name} has been added with default interest groups.`,
         });
       }
       setDialogOpen(false);
@@ -320,6 +324,31 @@ export default function AdminCampuses() {
     }
   };
 
+  // Seed default interest groups for all campuses that don't have them
+  const [seedingGroups, setSeedingGroups] = useState(false);
+  const handleSeedAllDefaultGroups = async () => {
+    const confirmed = window.confirm(
+      `This will add default interest groups to all ${campuses.length} campuses (skipping campuses that already have them). Continue?`
+    );
+    if (!confirmed) return;
+
+    setSeedingGroups(true);
+    let seededCount = 0;
+    for (const campus of campuses) {
+      try {
+        const result = await InterestGroup.seedDefaultGroups(campus.id);
+        if (result.length > 0) seededCount++;
+      } catch (error) {
+        console.error(`Error seeding groups for ${campus.name}:`, error);
+      }
+    }
+    setSeedingGroups(false);
+    toast({
+      title: "Default groups seeded!",
+      description: `Added default interest groups to ${seededCount} campus(es).`,
+    });
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -344,6 +373,23 @@ export default function AdminCampuses() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleSeedAllDefaultGroups}
+            disabled={seedingGroups}
+          >
+            {seedingGroups ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Seeding Groups...
+              </>
+            ) : (
+              <>
+                <Users className="w-4 h-4 mr-2" />
+                Seed Default Groups
+              </>
+            )}
+          </Button>
           <Button 
             variant="outline" 
             onClick={handleBackfillAll}
