@@ -645,20 +645,61 @@ export const Opportunity = {
   }
 }
 
-// Default interest groups that should exist at every university
+// Default interest groups that should exist at every university (matches original seed data)
 const DEFAULT_INTEREST_GROUPS = [
-  { name: 'Sports & Athletics', category: 'Sports', description: 'Connect with fellow sports enthusiasts. Whether you play, watch, or coach — join us!', image_url: 'https://images.unsplash.com/photo-1461896836934-bd45ba8fcf9b?w=400', member_count: 0 },
-  { name: 'Music & Bands', category: 'Music', description: 'For musicians, singers, and music lovers. Share your passion for music with others on campus.', image_url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400', member_count: 0 },
-  { name: 'Arts & Creative', category: 'Arts', description: 'A community for artists, designers, and creative minds. Explore and create together.', image_url: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400', member_count: 0 },
-  { name: 'Technology & Coding', category: 'Technology', description: 'Discuss tech, learn to code, build projects, and explore the future of technology.', image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400', member_count: 0 },
-  { name: 'Food & Cooking', category: 'Food', description: 'Share recipes, discover restaurants, and bond over great food near campus.', image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400', member_count: 0 },
-  { name: 'Gaming', category: 'Gaming', description: 'Gamers unite! From board games to esports, find your squad here.', image_url: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=400', member_count: 0 },
-  { name: 'Fitness & Wellness', category: 'Fitness', description: 'Stay active and healthy. Find workout partners, yoga sessions, and wellness tips.', image_url: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400', member_count: 0 },
-  { name: 'Book Club & Reading', category: 'Reading', description: 'For bookworms and avid readers. Discuss your latest reads and discover new favorites.', image_url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400', member_count: 0 },
-  { name: 'Travel & Adventure', category: 'Travel', description: 'Explore the world together. Share travel stories, plan trips, and discover adventures.', image_url: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400', member_count: 0 },
-  { name: 'Photography', category: 'Photography', description: 'Capture moments and share your vision. For photographers of all skill levels.', image_url: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=400', member_count: 0 },
-  { name: 'Volunteering & Community Service', category: 'Volunteering', description: 'Make a difference in your community. Find volunteer opportunities and give back.', image_url: 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=400', member_count: 0 },
-  { name: 'Academic & Study Groups', category: 'Academic', description: 'Study together, share notes, and help each other succeed academically.', image_url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400', member_count: 0 },
+  // Sports Groups
+  { name: 'Running Club', category: 'Sports', description: 'Join fellow runners for weekly group runs around campus and the city. All paces welcome!', image_url: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400', member_count: 0 },
+  { name: 'Basketball Intramurals', category: 'Sports', description: 'Competitive and recreational basketball leagues for all skill levels.', image_url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400', member_count: 0 },
+  { name: 'Soccer Club', category: 'Sports', description: 'Play pickup games and compete in intramural leagues. Co-ed teams available.', image_url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400', member_count: 0 },
+  { name: 'Tennis Club', category: 'Sports', description: 'Weekly tennis meetups, lessons, and tournaments for players of all levels.', image_url: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400', member_count: 0 },
+  { name: 'Volleyball Club', category: 'Sports', description: 'Indoor and beach volleyball games. Perfect for beginners and experienced players.', image_url: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=400', member_count: 0 },
+
+  // Music Groups
+  { name: 'A Cappella Society', category: 'Music', description: 'Student-run a cappella groups performing pop, jazz, and classical arrangements.', image_url: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=400', member_count: 0 },
+  { name: 'Jazz Ensemble', category: 'Music', description: 'Weekly jam sessions and performances. All instruments welcome.', image_url: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400', member_count: 0 },
+  { name: 'Guitar Club', category: 'Music', description: 'Learn guitar, share tabs, and jam with other guitarists on campus.', image_url: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400', member_count: 0 },
+  { name: 'Electronic Music Producers', category: 'Music', description: 'Collaborate on beats, share production tips, and host listening parties.', image_url: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400', member_count: 0 },
+
+  // Arts Groups
+  { name: 'Photography Club', category: 'Arts', description: 'Photo walks, editing workshops, and gallery exhibitions.', image_url: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=400', member_count: 0 },
+  { name: 'Film Society', category: 'Arts', description: 'Weekly movie screenings, discussions, and student film productions.', image_url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400', member_count: 0 },
+  { name: 'Art Studio', category: 'Arts', description: 'Open studio hours, life drawing sessions, and collaborative art projects.', image_url: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=400', member_count: 0 },
+  { name: 'Creative Writing Circle', category: 'Arts', description: 'Share your work, get feedback, and participate in writing challenges.', image_url: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=400', member_count: 0 },
+
+  // Technology Groups
+  { name: 'Coding Club', category: 'Technology', description: 'Hackathons, coding challenges, and tech talks. All programming languages.', image_url: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400', member_count: 0 },
+  { name: 'AI/ML Society', category: 'Technology', description: 'Explore machine learning, deep learning, and AI applications together.', image_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400', member_count: 0 },
+  { name: 'Cybersecurity Club', category: 'Technology', description: 'CTF competitions, security workshops, and ethical hacking sessions.', image_url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400', member_count: 0 },
+  { name: 'Robotics Team', category: 'Technology', description: 'Design, build, and compete with robots in national competitions.', image_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400', member_count: 0 },
+  { name: 'Web Dev Community', category: 'Technology', description: 'Learn web development, build projects, and share resources.', image_url: 'https://images.unsplash.com/photo-1547658719-da2b51169166?w=400', member_count: 0 },
+
+  // Food Groups
+  { name: 'Foodies Club', category: 'Food', description: 'Restaurant reviews, cooking competitions, and food truck hunting.', image_url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400', member_count: 0 },
+  { name: 'Baking Society', category: 'Food', description: 'Weekly bake-offs, recipe sharing, and bake sales for charity.', image_url: 'https://images.unsplash.com/photo-1486427944544-d2c6128c1858?w=400', member_count: 0 },
+  { name: 'Coffee Enthusiasts', category: 'Food', description: 'Explore local cafes, learn brewing methods, and discuss coffee culture.', image_url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400', member_count: 0 },
+
+  // Gaming Groups
+  { name: 'Esports Team', category: 'Gaming', description: 'Competitive gaming in League, Valorant, CS2, and more.', image_url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400', member_count: 0 },
+  { name: 'Board Game Night', category: 'Gaming', description: 'Weekly board game meetups. From Catan to D&D campaigns.', image_url: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=400', member_count: 0 },
+  { name: 'Chess Club', category: 'Gaming', description: 'Casual games, tournaments, and lessons for all skill levels.', image_url: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?w=400', member_count: 0 },
+
+  // Fitness Groups
+  { name: 'Yoga & Wellness', category: 'Fitness', description: 'Daily yoga sessions, meditation, and wellness workshops.', image_url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400', member_count: 0 },
+  { name: 'CrossFit Crew', category: 'Fitness', description: 'High-intensity workouts and fitness challenges. All levels welcome.', image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400', member_count: 0 },
+  { name: 'Swimming Club', category: 'Fitness', description: 'Lap swimming, water polo, and swim lessons.', image_url: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400', member_count: 0 },
+
+  // Reading Groups
+  { name: 'Book Club', category: 'Reading', description: 'Monthly book discussions spanning fiction, non-fiction, and classics.', image_url: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400', member_count: 0 },
+  { name: 'Philosophy Society', category: 'Reading', description: 'Deep discussions on ethics, existence, and everything in between.', image_url: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=400', member_count: 0 },
+
+  // Travel Groups
+  { name: 'Hiking & Outdoors', category: 'Travel', description: 'Weekend hikes, camping trips, and outdoor adventures.', image_url: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400', member_count: 0 },
+  { name: 'International Students Association', category: 'Travel', description: 'Cultural events, travel tips, and community for international students.', image_url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400', member_count: 0 },
+
+  // Volunteering Groups
+  { name: 'Community Service Corps', category: 'Volunteering', description: 'Weekly volunteer opportunities at local nonprofits and community centers.', image_url: 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=400', member_count: 0 },
+  { name: 'Environmental Club', category: 'Volunteering', description: 'Campus sustainability projects, cleanups, and environmental advocacy.', image_url: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=400', member_count: 0 },
+  { name: 'Tutoring Network', category: 'Volunteering', description: 'Volunteer tutoring for local K-12 students in all subjects.', image_url: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=400', member_count: 0 },
 ]
 
 export const InterestGroup = {

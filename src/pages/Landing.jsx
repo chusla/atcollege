@@ -157,6 +157,16 @@ export default function Landing() {
       const user = isAuthenticated() ? getCurrentUser() : null;
       const campusId = user?.selected_campus_id || null;
 
+      // Auto-seed default interest groups if campus has none yet
+      if (campusId) {
+        const existingGroups = await InterestGroup.listFeatured(campusId, 1);
+        const campusSpecific = (existingGroups || []).filter(g => g.campus_id === campusId);
+        if (campusSpecific.length === 0) {
+          console.log('Auto-seeding default interest groups for campus:', campusId);
+          await InterestGroup.seedDefaultGroups(campusId);
+        }
+      }
+
       // Fetch each independently so one failure doesn't block others
       const [eventsResult, placesResult, oppsResult, groupsResult] = await Promise.allSettled([
         Event.listFeatured(campusId, 6),

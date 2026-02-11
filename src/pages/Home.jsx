@@ -150,7 +150,15 @@ export default function Home() {
       const campusId = user?.selected_campus_id;
 
       // Load groups for the user's campus (or with null campus) so we can score and sort by user interests
-      const groupsData = await InterestGroup.listFeatured(campusId, 50);
+      let groupsData = await InterestGroup.listFeatured(campusId, 50);
+
+      // Auto-seed default interest groups if campus has very few groups
+      if (campusId && (!groupsData || groupsData.filter(g => g.campus_id === campusId).length === 0)) {
+        console.log('Auto-seeding default interest groups for campus:', campusId);
+        await InterestGroup.seedDefaultGroups(campusId);
+        // Reload after seeding
+        groupsData = await InterestGroup.listFeatured(campusId, 50);
+      }
       
       // Get user's interests for scoring
       const userInterests = user?.interests || [];

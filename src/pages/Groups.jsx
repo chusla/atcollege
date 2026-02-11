@@ -70,6 +70,19 @@ export default function Groups() {
       const user = isAuthenticated() ? getCurrentUser() : null;
       const campusId = user?.selected_campus_id;
 
+      // Auto-seed default interest groups if campus has none yet
+      if (campusId) {
+        const { data: campusGroups } = await supabase
+          .from('interest_groups')
+          .select('id')
+          .eq('campus_id', campusId)
+          .limit(1);
+        if (!campusGroups || campusGroups.length === 0) {
+          console.log('Auto-seeding default interest groups for campus:', campusId);
+          await InterestGroup.seedDefaultGroups(campusId);
+        }
+      }
+
       // Category filter (server-side)
       if (category && category !== 'all') {
         filters.category = category;
