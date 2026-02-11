@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { UploadFile } from '@/api/integrations';
 import { Mail, Heart, MessageSquare, GraduationCap, LogOut, Upload, Loader2, Calendar, Building2, Briefcase, Users, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import UniversitySearch from '../components/admin/UniversitySearch';
+import { fetchUniversityBranding, getWikipediaImageUrl } from '@/utils/wikipediaScraper';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { format } from 'date-fns';
 
@@ -37,8 +39,6 @@ export default function Profile() {
 
   // Add university
   const [showAddUniversity, setShowAddUniversity] = useState(false);
-  const [newUniversityName, setNewUniversityName] = useState('');
-  const [newUniversityLocation, setNewUniversityLocation] = useState('');
   const [addingUniversity, setAddingUniversity] = useState(false);
 
   const user = getCurrentUser();
@@ -123,34 +123,44 @@ export default function Profile() {
     }
   };
 
-  const handleAddUniversity = async () => {
-    if (!newUniversityName.trim()) {
-      alert('Please enter the university name');
-      return;
-    }
-    if (!newUniversityLocation.trim()) {
-      alert('Please enter the university location (city, state)');
-      return;
-    }
-
+  const handleUniversitySelect = async (university) => {
     setAddingUniversity(true);
     try {
-      const newCampus = await Campus.create({
-        name: newUniversityName.trim(),
-        location: newUniversityLocation.trim()
-      });
+      // Extract location from address
+      const addressParts = university.address?.split(',') || [];
+      const location = addressParts.length >= 2
+        ? `${addressParts[addressParts.length - 3]?.trim() || ''}, ${addressParts[addressParts.length - 2]?.trim() || ''}`.replace(/^,\s*/, '')
+        : university.address || '';
+
+      // Create campus with full data from Google Places
+      const campusData = {
+        name: university.name,
+        location: location,
+        latitude: university.latitude || null,
+        longitude: university.longitude || null,
+        image_url: university.photo_url || '',
+        google_place_id: university.google_place_id || '',
+      };
+
+      // Fetch branding from Wikipedia
+      try {
+        const branding = await fetchUniversityBranding(university.name);
+        if (branding.primaryColor) campusData.primary_color = branding.primaryColor;
+        if (branding.secondaryColor) campusData.secondary_color = branding.secondaryColor;
+        if (branding.logoUrl) campusData.logo_url = getWikipediaImageUrl(branding.logoUrl, 200);
+      } catch (e) {
+        console.error('Error fetching branding:', e);
+      }
+
+      const newCampus = await Campus.create(campusData);
 
       if (newCampus?.id) {
         await InterestGroup.seedDefaultGroups(newCampus.id);
 
-        // Select the newly created campus
         setSelectedCampus(newCampus.id);
         setCampuses(prev => [...prev, newCampus]);
         setShowAddUniversity(false);
-        setNewUniversityName('');
-        setNewUniversityLocation('');
 
-        // Auto-update profile to the new campus
         await updateProfile({
           selected_campus_id: newCampus.id,
           selected_campus_name: newCampus.name
@@ -570,55 +580,25 @@ export default function Profile() {
               </button>
             ) : (
               <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
-                <div>
-                  <Label htmlFor="newUniName" className="text-sm font-medium">University Name</Label>
-                  <Input
-                    id="newUniName"
-                    type="text"
-                    placeholder="e.g., Stanford University"
-                    value={newUniversityName}
-                    onChange={(e) => setNewUniversityName(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="newUniLocation" className="text-sm font-medium">Location</Label>
-                  <Input
-                    id="newUniLocation"
-                    type="text"
-                    placeholder="e.g., Stanford, CA"
-                    value={newUniversityLocation}
-                    onChange={(e) => setNewUniversityLocation(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleAddUniversity}
-                    disabled={addingUniversity || !newUniversityName.trim() || !newUniversityLocation.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 text-sm"
-                  >
-                    {addingUniversity ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      'Add University'
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddUniversity(false);
-                      setNewUniversityName('');
-                      setNewUniversityLocation('');
-                    }}
-                    className="text-sm"
-                  >
-                    Cancel
-                  </Button>
-                </div>
+                <h4 className="font-semibold text-gray-900 text-sm">Add Your University</h4>
+                <p className="text-xs text-gray-500">Start typing to search for your university</p>
+                <UniversitySearch
+                  onSelect={handleUniversitySelect}
+                  placeholder="e.g., Stanford University, Harvard..."
+                />
+                {addingUniversity && (
+                  <div className="flex items-center gap-2 text-sm text-blue-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Adding university and fetching branding...
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddUniversity(false)}
+                  className="text-sm"
+                >
+                  Cancel
+                </Button>
               </div>
             )}
           </CardContent>
